@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Trash2, Check, Target, Archive, RefreshCw } from 'lucide-react';
 import { getDeadlineCountdown } from '../utils/dateUtils';
@@ -68,11 +68,20 @@ const GoalItem: React.FC<{
 
 
 const MyGoals: React.FC = () => {
-  const { goals, addGoal, toggleGoal, archiveGoal, restoreGoal, permanentlyDeleteGoal, plan, routine } = useAppStore();
+  const { goals, addGoal, toggleGoal, archiveGoal, restoreGoal, permanentlyDeleteGoal, plan, routine, focusOnElement } = useAppStore();
   const [newGoalText, setNewGoalText] = useState('');
   const [category, setCategory] = useState<GoalCategory>('Short Term');
   const [deadline, setDeadline] = useState('');
   const [showArchived, setShowArchived] = useState(false);
+  
+  const newGoalInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (focusOnElement === 'new-goal-input') {
+      newGoalInputRef.current?.focus();
+    }
+  }, [focusOnElement]);
+
 
   const handleAddGoal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,6 +116,8 @@ const MyGoals: React.FC = () => {
       <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2"><Target size={20}/> My Goals</h2>
       <form onSubmit={handleAddGoal} className="space-y-3 mb-6">
         <input
+          id="new-goal-input"
+          ref={newGoalInputRef}
           type="text"
           value={newGoalText}
           onChange={(e) => setNewGoalText(e.target.value)}

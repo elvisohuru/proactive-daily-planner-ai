@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Check, Repeat, GripVertical, Play, X } from 'lucide-react';
+import { Plus, Trash2, Check, Repeat, GripVertical, Play, X, Link2, Info } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { RoutineTask } from '../types';
 
@@ -12,7 +12,16 @@ const DailyRoutine: React.FC = () => {
   const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
   const [timerDuration, setTimerDuration] = useState('60');
-  const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer } = useAppStore();
+  const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
+  const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer, focusOnElement, updateRoutineTask } = useAppStore();
+  
+  const newRoutineInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (focusOnElement === 'new-routine-input') {
+      newRoutineInputRef.current?.focus();
+    }
+  }, [focusOnElement]);
 
   const handleAddRoutine = (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,6 +57,30 @@ const DailyRoutine: React.FC = () => {
       setTimerSetupTaskId(null);
     }
   };
+  
+  const handleDependencyChange = (taskId: string, dependencyId: string, isChecked: boolean) => {
+    const task = routine.find(t => t.id === taskId);
+    if (!task) return;
+
+    const currentDeps = task.dependsOn || [];
+    const newDeps = isChecked
+      ? [...currentDeps, dependencyId]
+      : currentDeps.filter(id => id !== dependencyId);
+
+    updateRoutineTask(taskId, { dependsOn: newDeps });
+  };
+  
+  const getBlockedByText = (task: RoutineTask): string => {
+    if (!task.dependsOn) return '';
+    const blockingTasks = task.dependsOn
+      .map(depId => routine.find(t => t.id === depId && !t.completed))
+      .filter(Boolean);
+    
+    if (blockingTasks.length > 0) {
+      return `Blocked by: ${blockingTasks.map(t => t?.text).join(', ')}`;
+    }
+    return '';
+  };
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
@@ -57,6 +90,8 @@ const DailyRoutine: React.FC = () => {
       <form onSubmit={handleAddRoutine} className="flex flex-col gap-2 mb-4">
          <div className="flex gap-2">
             <input
+              id="new-routine-input"
+              ref={newRoutineInputRef}
               type="text"
               value={newRoutineText}
               onChange={(e) => setNewRoutineText(e.target.value)}
@@ -105,6 +140,8 @@ const DailyRoutine: React.FC = () => {
         {routine.map((task: RoutineTask) => {
           const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;
           const recurringDaysText = task.recurringDays.length > 0 ? task.recurringDays.map(d => weekDays[d]).join(' ') : 'Every day';
+          const isBlocked = task.dependsOn?.some(depId => !routine.find(t => t.id === depId)?.completed) ?? false;
+
           return (
             <Reorder.Item
               key={task.id}
@@ -113,16 +150,19 @@ const DailyRoutine: React.FC = () => {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-              className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg cursor-grab active:cursor-grabbing"
+              className={`flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg ${isBlocked ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
             >
-              <GripVertical size={18} className="text-slate-400 flex-shrink-0" />
+              {!isBlocked && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
+              {isBlocked && <div className="w-[18px] flex-shrink-0" />}
+              
               <button
-                onClick={() => toggleRoutineTask(task.id)}
+                onClick={() => !isBlocked && toggleRoutineTask(task.id)}
+                disabled={isBlocked}
                 className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                   task.completed
                     ? 'bg-calm-green-500 border-calm-green-500'
-                    : 'border-slate-300 dark:border-slate-500 hover:border-calm-blue-400'
-                }`}
+                    : 'border-slate-300 dark:border-slate-500'
+                } ${!isBlocked && !task.completed ? 'hover:border-calm-blue-400' : ''} ${isBlocked ? 'cursor-not-allowed bg-slate-200 dark:bg-slate-600' : ''}`}
                 aria-label={task.completed ? 'Mark routine as incomplete' : 'Mark routine as complete'}
               >
                 <AnimatePresence>
@@ -141,6 +181,16 @@ const DailyRoutine: React.FC = () => {
               <div className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
                 <p>{task.text}</p>
                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  {isBlocked && (
+                    <div className="group relative flex items-center">
+                        <span className="text-xs flex items-center gap-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-0.5 rounded-full">
+                            <Info size={12}/> Blocked
+                        </span>
+                          <div className="absolute bottom-full mb-2 w-max max-w-xs bg-slate-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                            {getBlockedByText(task)}
+                        </div>
+                    </div>
+                  )}
                   {linkedGoal && (
                     <span className="text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
                       🎯 {linkedGoal.text}
@@ -177,13 +227,43 @@ const DailyRoutine: React.FC = () => {
                 </form>
               ) : (
                 <button
-                  onClick={() => handleStartTimerSetup(task.id)}
-                  className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 transition-colors p-1"
+                  onClick={() => !isBlocked && handleStartTimerSetup(task.id)}
+                  disabled={isBlocked}
+                  className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-1"
                   aria-label="Start Timer for this routine task"
                 >
                   <Play size={18} />
                 </button>
               )}
+
+              <div className="relative">
+                <button onClick={() => !isBlocked && setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                    <Link2 size={18} />
+                </button>
+                <AnimatePresence>
+                {editingDepsFor === task.id && (
+                    <motion.div
+                        initial={{ opacity: 0, y: -5 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -5 }}
+                        className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
+                    >
+                        <p className="text-sm font-semibold mb-2">Depends on:</p>
+                        <ul className="max-h-48 overflow-y-auto space-y-2">
+                            {routine.filter(t => t.id !== task.id).map(depTask => (
+                                <li key={depTask.id}>
+                                    <label className="flex items-center gap-2 text-sm">
+                                        <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
+                                        <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
+                                    </label>
+                                </li>
+                            ))}
+                        </ul>
+                          <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
+                    </motion.div>
+                )}
+                </AnimatePresence>
+              </div>
 
               <button
                 onClick={() => deleteRoutineTask(task.id)}

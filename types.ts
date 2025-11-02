@@ -9,6 +9,7 @@ export type Task = {
   goalId: string | null;
   priority: TaskPriority;
   tags: string[];
+  dependsOn?: string[];
 };
 
 export type UnplannedTask = {
@@ -64,6 +65,7 @@ export type RoutineTask = {
   completed: boolean;
   goalId: string | null;
   recurringDays: number[]; // 0=Sun, 1=Mon, ..., 6=Sat
+  dependsOn?: string[];
 };
 
 export type PerformanceRecord = {
@@ -88,4 +90,13 @@ export type Achievement = {
 // Represents the definition of an achievement, used for checking conditions.
 export type AchievementDefinition = Omit<Achievement, 'unlocked'> & {
   condition: (state: any) => boolean; // Using `any` to avoid circular dependency with AppState
+};
+
+
+export type ShutdownStep = 'review' | 'reflect' | null;
+
+export type ShutdownState = {
+  isOpen: boolean;
+  step: ShutdownStep;
+  unfinishedTasks: Task[];
 };
