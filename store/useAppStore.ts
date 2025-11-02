@@ -12,6 +12,7 @@ import {
   Reflection,
   Theme,
   RoutineTask,
+  PerformanceRecord,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
 
@@ -22,6 +23,7 @@ interface AppState {
   routine: RoutineTask[];
   activeTask: ActiveTask | null;
   reflections: Reflection[];
+  performanceHistory: PerformanceRecord[];
   theme: Theme;
   isReflectionModalOpen: boolean;
 
@@ -35,6 +37,7 @@ interface AppState {
   updateTimer: (updates: Partial<ActiveTask>) => void;
   finishTimer: () => void;
   completeActiveTask: () => void;
+  extendTimer: (minutes: number) => void;
   addLog: (log: Omit<LogEntry, 'id'|'timestamp'|'dateString'>) => void;
   addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
   toggleGoal: (id: string) => void;
@@ -58,19 +61,41 @@ export const useAppStore = create<AppState>()(
       routine: [],
       activeTask: null,
       reflections: [],
+      performanceHistory: [],
       theme: 'dark',
       isReflectionModalOpen: false,
 
       // Actions
       initialize: () => {
         const today = getTodayDateString();
-        const { plan, routine } = get();
-        // Handles daily reset by date comparison
-        if (plan.date !== today) {
+        const { plan, routine, performanceHistory } = get();
+
+        // If the stored plan is for a previous day and has tasks, archive its performance.
+        if (plan.date !== today && plan.tasks.length > 0) {
+          const totalTasks = plan.tasks.length;
+          const completedTasks = plan.tasks.filter((task) => task.completed).length;
+          const score = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+          
+          const newRecord: PerformanceRecord = { date: plan.date, score };
+
+          const updatedHistory = performanceHistory.filter(p => p.date !== newRecord.date);
+          updatedHistory.push(newRecord);
+          
+          // Keep the last 30 days of history
+          const sortedHistory = updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+          const prunedHistory = sortedHistory.slice(0, 30);
+
+          set({
+            performanceHistory: prunedHistory,
+            plan: { date: today, tasks: [] },
+            activeTask: null,
+            routine: routine.map(task => ({ ...task, completed: false }))
+          });
+        } else if (plan.date !== today) {
+          // Handle the case where the day changes but there were no tasks.
           set({
             plan: { date: today, tasks: [] },
             activeTask: null,
-            // Reset completion status for routine tasks but don't delete them
             routine: routine.map(task => ({ ...task, completed: false }))
           });
         }
@@ -150,6 +175,21 @@ export const useAppStore = create<AppState>()(
 
           set({ activeTask: null });
         }
+      },
+
+      extendTimer: (minutes) => {
+        set((state) => {
+          if (!state.activeTask) return {};
+          const additionalSeconds = minutes * 60;
+          return {
+            activeTask: {
+              ...state.activeTask,
+              remainingSeconds: state.activeTask.remainingSeconds + additionalSeconds,
+              totalDuration: state.activeTask.totalDuration + additionalSeconds,
+              isPaused: false, // Automatically resume when extending
+            },
+          };
+        });
       },
 
       addLog: (log) => {

@@ -49,3 +49,8 @@ export type RoutineTask = {
   text: string;
   completed: boolean;
 };
+
+export type PerformanceRecord = {
+  date: string;
+  score: number; // Percentage
+};

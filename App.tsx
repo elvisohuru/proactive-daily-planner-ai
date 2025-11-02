@@ -9,6 +9,7 @@ import MyGoals from './components/MyGoals';
 import DailyReflection from './components/DailyReflection';
 import DailyRoutine from './components/DailyRoutine';
 import ReflectionTrigger from './components/ReflectionTrigger';
+import PerformanceHistory from './components/PerformanceHistory';
 
 function App() {
   const { theme, initialize } = useAppStore();
@@ -37,13 +38,14 @@ function App() {
             <TodaysPlan />
           </div>
           <div className="space-y-6">
-            <TaskTimer />
             <TimeLog />
             <MyGoals />
             <ReflectionTrigger />
+            <PerformanceHistory />
           </div>
         </div>
       </main>
+      <TaskTimer />
       <DailyReflection />
     </div>
   );
