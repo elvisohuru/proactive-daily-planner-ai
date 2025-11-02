@@ -14,11 +14,20 @@ import { supabase } from './lib/supabaseClient';
 import Auth from './components/Auth';
 
 function App() {
-  const { theme, initialize, session, setSession, fetchAllData, isDataLoading } = useAppStore();
+  const { 
+    theme, 
+    initialize, 
+    session, 
+    setSession, 
+    fetchAllData, 
+    isDataLoading,
+    isSessionChecked,
+    setSessionChecked
+  } = useAppStore();
 
   useEffect(() => {
     initialize();
-  }, []); // Should run only once on mount
+  }, [initialize]);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -29,36 +38,37 @@ function App() {
   }, [theme]);
 
   useEffect(() => {
-    // Check for existing session on initial load
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) {
-        fetchAllData();
-      }
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      setSessionChecked(true); // The session state is now known.
       if (session) {
         fetchAllData();
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [setSession, fetchAllData]);
-
-  if (isDataLoading && session) {
+  }, [setSession, fetchAllData, setSessionChecked]);
+  
+  if (!isSessionChecked) {
     return (
         <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center text-slate-500">
-            <p>Loading your plan...</p>
+            <p>Initializing...</p>
         </div>
     )
   }
 
   if (!session) {
     return <Auth />;
+  }
+  
+  if (isDataLoading) {
+    return (
+        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center text-slate-500">
+            <p>Loading your plan...</p>
+        </div>
+    )
   }
 
   return (

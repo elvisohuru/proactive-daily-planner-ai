@@ -29,6 +29,7 @@ interface AppState {
   isReflectionModalOpen: boolean;
   session: Session | null;
   isDataLoading: boolean;
+  isSessionChecked: boolean; // Tracks if the initial session check is complete
 
   // Actions
   initialize: () => void;
@@ -52,6 +53,7 @@ interface AppState {
   toggleTheme: () => void;
   setReflectionModalOpen: (isOpen: boolean) => void;
   setSession: (session: Session | null) => void;
+  setSessionChecked: (isChecked: boolean) => void;
   clearUserState: () => void;
   fetchAllData: () => Promise<void>;
 }
@@ -75,6 +77,7 @@ export const useAppStore = create<AppState>()(
       theme: 'dark',
       session: null,
       isDataLoading: true,
+      isSessionChecked: false,
 
       // Actions
       initialize: () => {
@@ -468,9 +471,13 @@ export const useAppStore = create<AppState>()(
           get().clearUserState();
         }
       },
+
+      setSessionChecked: (isChecked) => {
+        set({ isSessionChecked: isChecked });
+      },
       
       clearUserState: () => {
-        set({...initialState, goals: [], isDataLoading: false, session: null});
+        set({...initialState, goals: [], isDataLoading: false, session: null, isSessionChecked: true});
       }
     }),
     {
