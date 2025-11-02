@@ -11,6 +11,7 @@ import {
   ActiveTask,
   Reflection,
   Theme,
+  RoutineTask,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
 
@@ -18,6 +19,7 @@ interface AppState {
   plan: TodaysPlan;
   logs: LogEntry[];
   goals: Goal[];
+  routine: RoutineTask[];
   activeTask: ActiveTask | null;
   reflections: Reflection[];
   theme: Theme;
@@ -36,6 +38,10 @@ interface AppState {
   addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
   toggleGoal: (id: string) => void;
   deleteGoal: (id: string) => void;
+  addRoutineTask: (text: string) => void;
+  toggleRoutineTask: (id: string) => void;
+  deleteRoutineTask: (id: string) => void;
+  reorderRoutine: (routine: RoutineTask[]) => void;
   addReflection: (well: string, improve: string) => void;
   toggleTheme: () => void;
   setReflectionModalOpen: (isOpen: boolean) => void;
@@ -48,18 +54,24 @@ export const useAppStore = create<AppState>()(
       plan: { date: getTodayDateString(), tasks: [] },
       logs: [],
       goals: [],
+      routine: [],
       activeTask: null,
       reflections: [],
-      theme: 'light',
+      theme: 'dark',
       isReflectionModalOpen: false,
 
       // Actions
       initialize: () => {
         const today = getTodayDateString();
-        const { plan } = get();
+        const { plan, routine } = get();
         // Handles daily reset by date comparison
         if (plan.date !== today) {
-          set({ plan: { date: today, tasks: [] }, activeTask: null });
+          set({
+            plan: { date: today, tasks: [] },
+            activeTask: null,
+            // Reset completion status for routine tasks but don't delete them
+            routine: routine.map(task => ({ ...task, completed: false }))
+          });
         }
       },
 
@@ -154,6 +166,39 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           goals: state.goals.filter((goal) => goal.id !== id),
         }));
+      },
+
+      addRoutineTask: (text) => {
+        const newRoutineTask: RoutineTask = { id: uuidv4(), text, completed: false };
+        set((state) => ({
+          routine: [...state.routine, newRoutineTask],
+        }));
+      },
+
+      toggleRoutineTask: (id) => {
+        const { routine, addLog } = get();
+        const taskToToggle = routine.find((task) => task.id === id);
+
+        // When marking a routine task as complete, add it to the log.
+        if (taskToToggle && !taskToToggle.completed) {
+          addLog({ task: taskToToggle.text, duration: 0 });
+        }
+        
+        set((state) => ({
+          routine: state.routine.map((task) =>
+            task.id === id ? { ...task, completed: !task.completed } : task
+          ),
+        }));
+      },
+
+      deleteRoutineTask: (id) => {
+        set((state) => ({
+          routine: state.routine.filter((task) => task.id !== id),
+        }));
+      },
+      
+      reorderRoutine: (routine) => {
+        set({ routine });
       },
 
       addReflection: (well, improve) => {

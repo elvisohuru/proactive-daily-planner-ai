@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import { useAppStore } from './store/useAppStore';
 import Header from './components/Header';
@@ -8,6 +7,7 @@ import TaskTimer from './components/TaskTimer';
 import TimeLog from './components/TimeLog';
 import MyGoals from './components/MyGoals';
 import DailyReflection from './components/DailyReflection';
+import DailyRoutine from './components/DailyRoutine';
 
 function App() {
   const { theme, initialize } = useAppStore();
@@ -32,6 +32,7 @@ function App() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             <DailyProgress />
+            <DailyRoutine />
             <TodaysPlan />
           </div>
           <div className="space-y-6">

@@ -1,4 +1,3 @@
-
 export type Task = {
   id: string;
   text: string;
@@ -42,3 +41,9 @@ export type Reflection = {
 };
 
 export type Theme = 'light' | 'dark';
+
+export type RoutineTask = {
+  id: string;
+  text: string;
+  completed: boolean;
+};
