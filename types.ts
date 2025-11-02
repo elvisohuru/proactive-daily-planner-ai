@@ -28,6 +28,8 @@ export type Goal = {
 };
 
 export type ActiveTask = {
+  id: string; // The ID of the plan task or routine task
+  type: 'plan' | 'routine'; // The type of task
   task: string;
   remainingSeconds: number;
   isPaused: boolean;

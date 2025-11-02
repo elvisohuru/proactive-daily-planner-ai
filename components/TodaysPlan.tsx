@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Trash2, Play, Check, X, GripVertical } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { Task } from '../types';
 
 const TodaysPlan: React.FC = () => {
   const [newTaskText, setNewTaskText] = useState('');
@@ -27,10 +28,10 @@ const TodaysPlan: React.FC = () => {
     setTimerSetupTaskId(null);
   };
 
-  const handleConfirmStartTimer = (taskText: string) => {
+  const handleConfirmStartTimer = (task: Task) => {
     const duration = parseInt(timerDuration, 10);
     if (!isNaN(duration) && duration > 0) {
-      startTimer(taskText, duration);
+      startTimer(task.id, 'plan', task.text, duration);
       setTimerSetupTaskId(null);
     }
   };
@@ -97,7 +98,7 @@ const TodaysPlan: React.FC = () => {
                 <form 
                   onSubmit={(e) => {
                     e.preventDefault();
-                    handleConfirmStartTimer(task.text);
+                    handleConfirmStartTimer(task);
                   }}
                   className="flex items-center gap-1"
                 >

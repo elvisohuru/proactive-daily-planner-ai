@@ -27,10 +27,10 @@ const DailyRoutine: React.FC = () => {
     setTimerSetupTaskId(null);
   };
 
-  const handleConfirmStartTimer = (taskText: string) => {
+  const handleConfirmStartTimer = (task: RoutineTask) => {
     const duration = parseInt(timerDuration, 10);
     if (!isNaN(duration) && duration > 0) {
-      startTimer(taskText, duration);
+      startTimer(task.id, 'routine', task.text, duration);
       setTimerSetupTaskId(null);
     }
   };
@@ -98,7 +98,7 @@ const DailyRoutine: React.FC = () => {
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
-                  handleConfirmStartTimer(task.text);
+                  handleConfirmStartTimer(task);
                 }}
                 className="flex items-center gap-1"
               >

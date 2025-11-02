@@ -31,15 +31,16 @@ interface AppState {
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   reorderTasks: (tasks: Task[]) => void;
-  startTimer: (task: string, durationMinutes: number) => void;
+  startTimer: (id: string, type: 'plan' | 'routine', task: string, durationMinutes: number) => void;
   updateTimer: (updates: Partial<ActiveTask>) => void;
   finishTimer: () => void;
+  completeActiveTask: () => void;
   addLog: (log: Omit<LogEntry, 'id'|'timestamp'|'dateString'>) => void;
   addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
   toggleGoal: (id: string) => void;
   deleteGoal: (id: string) => void;
   addRoutineTask: (text: string) => void;
-  toggleRoutineTask: (id: string) => void;
+  toggleRoutineTask: (id: string, skipLog?: boolean) => void;
   deleteRoutineTask: (id: string) => void;
   reorderRoutine: (routine: RoutineTask[]) => void;
   addReflection: (well: string, improve: string) => void;
@@ -105,10 +106,12 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      startTimer: (task, durationMinutes) => {
+      startTimer: (id, type, task, durationMinutes) => {
         const durationSeconds = durationMinutes * 60;
         set({
           activeTask: {
+            id,
+            type,
             task,
             remainingSeconds: durationSeconds,
             totalDuration: durationSeconds,
@@ -127,6 +130,24 @@ export const useAppStore = create<AppState>()(
         const { activeTask } = get();
         if (activeTask) {
           get().addLog({ task: activeTask.task, duration: activeTask.totalDuration });
+          set({ activeTask: null });
+        }
+      },
+      
+      completeActiveTask: () => {
+        const { activeTask, toggleTask, toggleRoutineTask, addLog } = get();
+        if (activeTask) {
+          const timeSpent = activeTask.totalDuration - activeTask.remainingSeconds;
+          if (timeSpent > 0) {
+            addLog({ task: activeTask.task, duration: timeSpent });
+          }
+
+          if (activeTask.type === 'plan') {
+            toggleTask(activeTask.id);
+          } else if (activeTask.type === 'routine') {
+            toggleRoutineTask(activeTask.id, true); // Pass skipLog = true
+          }
+
           set({ activeTask: null });
         }
       },
@@ -173,12 +194,12 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      toggleRoutineTask: (id) => {
+      toggleRoutineTask: (id, skipLog = false) => {
         const { routine, addLog } = get();
         const taskToToggle = routine.find((task) => task.id === id);
 
         // When marking a routine task as complete, add it to the log.
-        if (taskToToggle && !taskToToggle.completed) {
+        if (!skipLog && taskToToggle && !taskToToggle.completed) {
           addLog({ task: taskToToggle.text, duration: 0 });
         }
         

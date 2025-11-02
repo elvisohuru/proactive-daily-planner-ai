@@ -1,11 +1,11 @@
 import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { formatTime } from '../utils/dateUtils';
-import { Play, Pause, Square } from 'lucide-react';
+import { Play, Pause, CheckSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TaskTimer: React.FC = () => {
-  const { activeTask, updateTimer, finishTimer } = useAppStore();
+  const { activeTask, updateTimer, finishTimer, completeActiveTask } = useAppStore();
   const intervalRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -33,9 +33,9 @@ const TaskTimer: React.FC = () => {
     }
   };
 
-  const handleFinish = () => {
+  const handleCompleteAndLog = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    finishTimer();
+    completeActiveTask();
   };
 
   const progress = activeTask ? (1 - activeTask.remainingSeconds / activeTask.totalDuration) * 100 : 0;
@@ -73,11 +73,11 @@ const TaskTimer: React.FC = () => {
               {activeTask.isPaused ? <Play size={20} /> : <Pause size={20} />}
             </button>
             <button
-              onClick={handleFinish}
-              className="bg-red-500 hover:bg-red-600 text-white font-semibold p-3 rounded-full flex items-center justify-center transition"
-              aria-label="Finish and Log Task"
+              onClick={handleCompleteAndLog}
+              className="bg-calm-green-500 hover:bg-calm-green-600 text-white font-semibold p-3 rounded-full flex items-center justify-center transition"
+              aria-label="Complete and Log Task"
             >
-              <Square size={20} />
+              <CheckSquare size={20} />
             </button>
           </div>
         </motion.div>
