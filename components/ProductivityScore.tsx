@@ -54,14 +54,16 @@ const ConfettiPiece: React.FC<{ delay: number, isBurst: boolean }> = ({ delay, i
 };
 
 const ProductivityScore: React.FC = () => {
-  const plannedTasks = useAppStore((state) => state.plan.tasks);
-  const routineTasks = useAppStore((state) => state.routine);
+  const { plan, routine } = useAppStore();
 
-  const totalPlanned = plannedTasks.length;
-  const completedPlanned = plannedTasks.filter((task) => task.completed).length;
+  const todayIndex = new Date().getDay();
+  const todaysScheduledRoutine = routine.filter(r => r.recurringDays.length === 0 || r.recurringDays.includes(todayIndex));
 
-  const totalRoutine = routineTasks.length;
-  const completedRoutine = routineTasks.filter((task) => task.completed).length;
+  const totalPlanned = plan.tasks.length;
+  const completedPlanned = plan.tasks.filter((task) => task.completed).length;
+
+  const totalRoutine = todaysScheduledRoutine.length;
+  const completedRoutine = todaysScheduledRoutine.filter((task) => task.completed).length;
 
   const totalTasks = totalPlanned + totalRoutine;
   const completedTasks = completedPlanned + completedRoutine;
@@ -100,8 +102,7 @@ const ProductivityScore: React.FC = () => {
       }}
       transition={{ duration: 1.5, ease: 'easeInOut' }}
     >
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Productivity Score</h2>
-      <div className="relative w-40 h-40">
+      <div className="relative w-40 h-40 flex-shrink-0">
         <AnimatePresence>
           {isComplete && (
             <>
@@ -111,43 +112,22 @@ const ProductivityScore: React.FC = () => {
           )}
         </AnimatePresence>
         <svg className="w-full h-full relative z-10" viewBox="0 0 120 120">
-          <circle
-            cx="60"
-            cy="60"
-            r="54"
-            fill="none"
-            strokeWidth="12"
-            className="text-slate-200 dark:text-slate-700"
-          />
+          <circle cx="60" cy="60" r="54" fill="none" strokeWidth="12" className="text-slate-200 dark:text-slate-700" />
           <motion.circle
-            cx="60"
-            cy="60"
-            r="54"
-            fill="none"
-            strokeWidth="12"
+            cx="60" cy="60" r="54" fill="none" strokeWidth="12"
             className={`stroke-current ${isComplete ? 'text-calm-green-500' : 'text-calm-blue-500'}`}
-            strokeLinecap="round"
-            transform="rotate(-90 60 60)"
+            strokeLinecap="round" transform="rotate(-90 60 60)"
             style={{ strokeDasharray: circumference }}
-            animate={{ 
-              strokeDashoffset,
-              filter: isComplete ? ['drop-shadow(0 0 0px #22c55e)', 'drop-shadow(0 0 10px #22c55e)', 'drop-shadow(0 0 0px #22c55e)'] : 'none'
-            }}
-            transition={{ 
-                strokeDashoffset: { duration: 0.8, ease: 'easeInOut' },
-                filter: { duration: 2, repeat: Infinity, ease: 'easeInOut' }
-            }}
+            animate={{ strokeDashoffset, filter: isComplete ? ['drop-shadow(0 0 0px #22c55e)', 'drop-shadow(0 0 10px #22c55e)', 'drop-shadow(0 0 0px #22c55e)'] : 'none' }}
+            transition={{ strokeDashoffset: { duration: 0.8, ease: 'easeInOut' }, filter: { duration: 2, repeat: Infinity, ease: 'easeInOut' } }}
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-          <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">
-            {score}
-            <span className="text-2xl text-slate-500">%</span>
-          </span>
+          <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{score}<span className="text-2xl text-slate-500">%</span></span>
         </div>
       </div>
       <div className="text-center">
-        <p className="font-semibold text-slate-700 dark:text-slate-300">
+        <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">
           {getMotivationalMessage()}
         </p>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

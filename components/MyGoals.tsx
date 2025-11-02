@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Check, Target } from 'lucide-react';
+import { Plus, Trash2, Check, Target, Archive, RefreshCw } from 'lucide-react';
 import { getDeadlineCountdown } from '../utils/dateUtils';
 import { Goal, GoalCategory } from '../types';
 import { motion } from 'framer-motion';
 
-const GoalItem: React.FC<{ goal: Goal; progress: number; onToggle: (id: string) => void; onDelete: (id: string) => void }> = ({ goal, progress, onToggle, onDelete }) => {
+const GoalItem: React.FC<{ 
+    goal: Goal; 
+    progress: number; 
+    onToggle: (id: string) => void; 
+    onArchive: (id: string) => void;
+    onRestore: (id: string) => void;
+    onDelete: (id: string) => void;
+}> = ({ goal, progress, onToggle, onArchive, onRestore, onDelete }) => {
   const [countdown, setCountdown] = useState(getDeadlineCountdown(goal.deadline));
 
   useEffect(() => {
@@ -19,21 +26,22 @@ const GoalItem: React.FC<{ goal: Goal; progress: number; onToggle: (id: string) 
     <li className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
       <button
         onClick={() => onToggle(goal.id)}
+        disabled={goal.archived}
         className={`mt-1 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
           goal.completed ? 'bg-calm-green-500 border-calm-green-500' : 'border-slate-300 dark:border-slate-500'
-        }`}
+        } disabled:bg-slate-400 disabled:border-slate-400`}
       >
         {goal.completed && <Check size={12} className="text-white" />}
       </button>
       <div className="flex-grow">
         <div className="flex justify-between items-baseline">
-          <p className={`text-slate-700 dark:text-slate-300 ${goal.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+          <p className={`text-slate-700 dark:text-slate-300 ${goal.completed || goal.archived ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
             {goal.text}
           </p>
-          {!goal.completed && <span className="text-xs font-semibold text-calm-blue-600 dark:text-calm-blue-400 ml-2">{Math.round(progress)}%</span>}
+          {!goal.completed && !goal.archived && <span className="text-xs font-semibold text-calm-blue-600 dark:text-calm-blue-400 ml-2">{Math.round(progress)}%</span>}
         </div>
         
-        {!goal.completed && (
+        {!goal.completed && !goal.archived && (
           <div className="w-full bg-slate-200 dark:bg-slate-600 rounded-full h-1.5 my-1.5">
             <motion.div 
               className="bg-calm-blue-500 h-1.5 rounded-full"
@@ -44,19 +52,27 @@ const GoalItem: React.FC<{ goal: Goal; progress: number; onToggle: (id: string) 
           </div>
         )}
         
-        {goal.deadline && !goal.completed && <p className="text-xs text-slate-500 dark:text-slate-400">{countdown}</p>}
+        {goal.deadline && !goal.completed && !goal.archived && <p className="text-xs text-slate-500 dark:text-slate-400">{countdown}</p>}
       </div>
-      <button onClick={() => onDelete(goal.id)} className="text-slate-400 hover:text-red-500 p-1 flex-shrink-0"><Trash2 size={16} /></button>
+      {goal.archived ? (
+        <>
+            <button onClick={() => onRestore(goal.id)} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0"><RefreshCw size={16} /></button>
+            <button onClick={() => onDelete(goal.id)} className="text-slate-400 hover:text-red-500 p-1 flex-shrink-0"><Trash2 size={16} /></button>
+        </>
+      ) : (
+        <button onClick={() => onArchive(goal.id)} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0"><Archive size={16} /></button>
+      )}
     </li>
   );
 };
 
 
 const MyGoals: React.FC = () => {
-  const { goals, addGoal, toggleGoal, deleteGoal, plan, routine } = useAppStore();
+  const { goals, addGoal, toggleGoal, archiveGoal, restoreGoal, permanentlyDeleteGoal, plan, routine } = useAppStore();
   const [newGoalText, setNewGoalText] = useState('');
   const [category, setCategory] = useState<GoalCategory>('Short Term');
   const [deadline, setDeadline] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   const handleAddGoal = (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,8 +97,10 @@ const MyGoals: React.FC = () => {
     return (completedItems / totalItems) * 100;
   };
 
-  const shortTermGoals = goals.filter((g) => g.category === 'Short Term');
-  const longTermGoals = goals.filter((g) => g.category === 'Long Term');
+  const activeGoals = goals.filter(g => !g.archived);
+  const archivedGoals = goals.filter(g => g.archived);
+  const shortTermGoals = activeGoals.filter((g) => g.category === 'Short Term');
+  const longTermGoals = activeGoals.filter((g) => g.category === 'Long Term');
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
@@ -116,7 +134,7 @@ const MyGoals: React.FC = () => {
           <ul className="space-y-2">
             {shortTermGoals.length > 0 ? shortTermGoals.map(g => {
                 const progress = calculateGoalProgress(g.id);
-                return <GoalItem key={g.id} goal={g} progress={progress} onToggle={toggleGoal} onDelete={deleteGoal} />
+                return <GoalItem key={g.id} goal={g} progress={progress} onToggle={toggleGoal} onArchive={archiveGoal} onRestore={restoreGoal} onDelete={permanentlyDeleteGoal} />
             }) : <p className="text-sm text-slate-500">No short term goals yet.</p>}
           </ul>
         </div>
@@ -125,9 +143,22 @@ const MyGoals: React.FC = () => {
            <ul className="space-y-2">
             {longTermGoals.length > 0 ? longTermGoals.map(g => {
                 const progress = calculateGoalProgress(g.id);
-                return <GoalItem key={g.id} goal={g} progress={progress} onToggle={toggleGoal} onDelete={deleteGoal} />
+                return <GoalItem key={g.id} goal={g} progress={progress} onToggle={toggleGoal} onArchive={archiveGoal} onRestore={restoreGoal} onDelete={permanentlyDeleteGoal} />
             }) : <p className="text-sm text-slate-500">No long term goals yet.</p>}
           </ul>
+        </div>
+        
+        <div className="pt-4 border-t border-slate-200 dark:border-slate-700">
+            <button onClick={() => setShowArchived(!showArchived)} className="text-sm text-slate-500 dark:text-slate-400 font-semibold">
+                {showArchived ? 'Hide' : 'Show'} Archived Goals ({archivedGoals.length})
+            </button>
+            {showArchived && (
+                 <ul className="space-y-2 mt-2">
+                    {archivedGoals.length > 0 ? archivedGoals.map(g => (
+                        <GoalItem key={g.id} goal={g} progress={100} onToggle={toggleGoal} onArchive={archiveGoal} onRestore={restoreGoal} onDelete={permanentlyDeleteGoal} />
+                    )) : <p className="text-sm text-slate-500">No archived goals.</p>}
+                </ul>
+            )}
         </div>
       </div>
     </div>

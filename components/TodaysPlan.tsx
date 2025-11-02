@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Play, Check, X, GripVertical } from 'lucide-react';
+import { Plus, Trash2, Play, Check, X, GripVertical, Flag, Tag } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
-import { Task } from '../types';
+import { Task, TaskPriority } from '../types';
+
+const priorityMap: { [key in TaskPriority]: { color: string, label: string } } = {
+    high: { color: 'border-red-500', label: 'High' },
+    medium: { color: 'border-yellow-500', label: 'Medium' },
+    low: { color: 'border-blue-500', label: 'Low' },
+    none: { color: 'border-transparent', label: 'None' },
+};
 
 const TodaysPlan: React.FC = () => {
   const [newTaskText, setNewTaskText] = useState('');
   const [newGoalId, setNewGoalId] = useState<string | null>(null);
+  const [newPriority, setNewPriority] = useState<TaskPriority>('none');
+  const [newTags, setNewTags] = useState('');
   const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
   const [timerDuration, setTimerDuration] = useState('60');
   
@@ -17,9 +26,12 @@ const TodaysPlan: React.FC = () => {
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTaskText.trim()) {
-      addTask(newTaskText.trim(), newGoalId);
+      const tagsArray = newTags.split(',').map(t => t.trim()).filter(Boolean);
+      addTask(newTaskText.trim(), newGoalId, newPriority, tagsArray);
       setNewTaskText('');
       setNewGoalId(null);
+      setNewPriority('none');
+      setNewTags('');
     }
   };
   
@@ -60,16 +72,41 @@ const TodaysPlan: React.FC = () => {
               <Plus size={20} />
             </button>
         </div>
-        <select
-            value={newGoalId || ''}
-            onChange={(e) => setNewGoalId(e.target.value || null)}
-            className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
-        >
-            <option value="">No associated goal</option>
-            {goals.filter(g => !g.completed).map(goal => (
-            <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
-            ))}
-        </select>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            <select
+                value={newGoalId || ''}
+                onChange={(e) => setNewGoalId(e.target.value || null)}
+                className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
+            >
+                <option value="">No associated goal</option>
+                {goals.filter(g => !g.completed && !g.archived).map(goal => (
+                <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
+                ))}
+            </select>
+            <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center">
+                <Flag size={14} className="text-slate-500" />
+                 <select
+                    value={newPriority}
+                    onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
+                    className="w-full bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0"
+                >
+                    <option value="none">No Priority</option>
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                </select>
+            </div>
+        </div>
+         <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center">
+            <Tag size={14} className="text-slate-500" />
+            <input 
+                type="text"
+                value={newTags}
+                onChange={(e) => setNewTags(e.target.value)}
+                placeholder="Tags (comma-separated)"
+                className="w-full bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0 p-0 h-auto"
+            />
+        </div>
       </form>
       <Reorder.Group as="ul" axis="y" values={tasks} onReorder={reorderTasks} className="space-y-2">
         <AnimatePresence>
@@ -83,7 +120,7 @@ const TodaysPlan: React.FC = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg cursor-grab active:cursor-grabbing"
+                className={`flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg cursor-grab active:cursor-grabbing border-l-4 ${priorityMap[task.priority].color}`}
               >
                 <GripVertical size={18} className="text-slate-400 flex-shrink-0" />
                 <button
@@ -109,12 +146,19 @@ const TodaysPlan: React.FC = () => {
                   </AnimatePresence>
                 </button>
                 <div className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
-                  <span>{task.text}</span>
-                  {linkedGoal && (
-                    <span className="ml-2 text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
-                      🎯 {linkedGoal.text}
-                    </span>
-                  )}
+                  <p>{task.text}</p>
+                   <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {linkedGoal && (
+                        <span className="text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
+                          🎯 {linkedGoal.text}
+                        </span>
+                      )}
+                      {task.tags.map(tag => (
+                          <span key={tag} className="text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">
+                              # {tag}
+                          </span>
+                      ))}
+                  </div>
                 </div>
 
                 {timerSetupTaskId === task.id ? (

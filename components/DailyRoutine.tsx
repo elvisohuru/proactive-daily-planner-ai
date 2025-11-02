@@ -4,9 +4,12 @@ import { Plus, Trash2, Check, Repeat, GripVertical, Play, X } from 'lucide-react
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { RoutineTask } from '../types';
 
+const weekDays = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
 const DailyRoutine: React.FC = () => {
   const [newRoutineText, setNewRoutineText] = useState('');
   const [newGoalId, setNewGoalId] = useState<string | null>(null);
+  const [recurringDays, setRecurringDays] = useState<number[]>([]);
   const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
   const [timerDuration, setTimerDuration] = useState('60');
   const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer } = useAppStore();
@@ -14,15 +17,24 @@ const DailyRoutine: React.FC = () => {
   const handleAddRoutine = (e: React.FormEvent) => {
     e.preventDefault();
     if (newRoutineText.trim()) {
-      addRoutineTask(newRoutineText.trim(), newGoalId);
+      addRoutineTask(newRoutineText.trim(), newGoalId, recurringDays);
       setNewRoutineText('');
       setNewGoalId(null);
+      setRecurringDays([]);
     }
+  };
+
+  const toggleRecurringDay = (dayIndex: number) => {
+    setRecurringDays(prev => 
+      prev.includes(dayIndex) 
+        ? prev.filter(d => d !== dayIndex)
+        : [...prev, dayIndex]
+    );
   };
   
   const handleStartTimerSetup = (taskId: string) => {
     setTimerSetupTaskId(taskId);
-    setTimerDuration('60'); // Reset to default when opening
+    setTimerDuration('60');
   };
 
   const handleCancelTimerSetup = () => {
@@ -59,20 +71,40 @@ const DailyRoutine: React.FC = () => {
               <Plus size={20} />
             </button>
         </div>
-        <select
+         <select
             value={newGoalId || ''}
             onChange={(e) => setNewGoalId(e.target.value || null)}
             className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
         >
             <option value="">No associated goal</option>
-            {goals.filter(g => !g.completed).map(goal => (
+            {goals.filter(g => !g.completed && !g.archived).map(goal => (
             <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
             ))}
         </select>
+        <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-2">
+          <span className="text-sm text-slate-600 dark:text-slate-300 px-2">Repeats on:</span>
+          <div className="flex gap-1">
+            {weekDays.map((day, index) => (
+              <button
+                type="button"
+                key={index}
+                onClick={() => toggleRecurringDay(index)}
+                className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${
+                  recurringDays.includes(index)
+                    ? 'bg-calm-blue-500 text-white'
+                    : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500'
+                }`}
+              >
+                {day}
+              </button>
+            ))}
+          </div>
+        </div>
       </form>
       <Reorder.Group as="ul" axis="y" values={routine} onReorder={reorderRoutine} className="space-y-2">
         {routine.map((task: RoutineTask) => {
           const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;
+          const recurringDaysText = task.recurringDays.length > 0 ? task.recurringDays.map(d => weekDays[d]).join(' ') : 'Every day';
           return (
             <Reorder.Item
               key={task.id}
@@ -107,12 +139,15 @@ const DailyRoutine: React.FC = () => {
                 </AnimatePresence>
               </button>
               <div className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
-                <span>{task.text}</span>
+                <p>{task.text}</p>
+                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {linkedGoal && (
-                    <span className="ml-2 text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
+                    <span className="text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
                       🎯 {linkedGoal.text}
                     </span>
                   )}
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{recurringDaysText}</span>
+                 </div>
               </div>
 
               {timerSetupTaskId === task.id ? (
@@ -137,21 +172,8 @@ const DailyRoutine: React.FC = () => {
                         }}
                     />
                     <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
-                    <button 
-                        type="submit"
-                        className="text-calm-green-500 hover:text-calm-green-600 p-1"
-                        aria-label="Confirm start timer"
-                    >
-                        <Check size={18} />
-                    </button>
-                    <button
-                        type="button"
-                        onClick={handleCancelTimerSetup}
-                        className="text-slate-400 hover:text-slate-600 p-1"
-                        aria-label="Cancel timer setup"
-                    >
-                        <X size={18} />
-                    </button>
+                    <button type="submit" className="text-calm-green-500 hover:text-calm-green-600 p-1"><Check size={18} /></button>
+                    <button type="button" onClick={handleCancelTimerSetup} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
                 </form>
               ) : (
                 <button
