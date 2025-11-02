@@ -1,4 +1,3 @@
-
 import { format, differenceInDays, differenceInHours, differenceInMinutes, parseISO, isValid } from 'date-fns';
 
 export const getTodayDateString = (): string => {
@@ -11,8 +10,10 @@ export const formatTime = (seconds: number): string => {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
 };
 
-export const formatLogTimestamp = (timestamp: number): string => {
-  return format(new Date(timestamp), 'h:mm a');
+export const formatLogTimestamp = (timestamp: string | number): string => {
+  const date = typeof timestamp === 'string' ? parseISO(timestamp) : new Date(timestamp);
+  if (!isValid(date)) return '';
+  return format(date, 'h:mm a');
 };
 
 export const getDeadlineCountdown = (deadlineISO: string | null): string => {

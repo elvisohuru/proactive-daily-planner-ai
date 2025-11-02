@@ -58,18 +58,18 @@ const MyGoals: React.FC = () => {
   const [category, setCategory] = useState<GoalCategory>('Short Term');
   const [deadline, setDeadline] = useState('');
 
-  const handleAddGoal = (e: React.FormEvent) => {
+  const handleAddGoal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newGoalText.trim()) {
-      addGoal(newGoalText.trim(), category, deadline || null);
+      await addGoal(newGoalText.trim(), category, deadline || null);
       setNewGoalText('');
       setDeadline('');
     }
   };
 
   const calculateGoalProgress = (goalId: string) => {
-    const linkedTasks = plan.tasks.filter(t => t.goalId === goalId);
-    const linkedRoutines = routine.filter(r => r.goalId === goalId);
+    const linkedTasks = plan.tasks.filter(t => t.goal_id === goalId);
+    const linkedRoutines = routine.filter(r => r.goal_id === goalId);
 
     const totalItems = linkedTasks.length + linkedRoutines.length;
     if (totalItems === 0) return 0;

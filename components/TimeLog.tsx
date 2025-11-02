@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { getTodayDateString, formatLogTimestamp, formatTime } from '../utils/dateUtils';
@@ -8,7 +7,7 @@ import { motion } from 'framer-motion';
 const TimeLog: React.FC = () => {
   const logs = useAppStore((state) => state.logs);
   const today = getTodayDateString();
-  const todaysLogs = logs.filter((log) => log.dateString === today);
+  const todaysLogs = logs.filter((log) => log.timestamp.startsWith(today));
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">

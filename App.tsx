@@ -10,14 +10,15 @@ import DailyReflection from './components/DailyReflection';
 import DailyRoutine from './components/DailyRoutine';
 import ReflectionTrigger from './components/ReflectionTrigger';
 import PerformanceHistory from './components/PerformanceHistory';
+import { supabase } from './lib/supabaseClient';
+import Auth from './components/Auth';
 
 function App() {
-  const { theme, initialize } = useAppStore();
+  const { theme, initialize, session, setSession, fetchAllData, isDataLoading } = useAppStore();
 
   useEffect(() => {
     initialize();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, []); // Should run only once on mount
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -26,6 +27,39 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  useEffect(() => {
+    // Check for existing session on initial load
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        fetchAllData();
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      if (session) {
+        fetchAllData();
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [setSession, fetchAllData]);
+
+  if (isDataLoading && session) {
+    return (
+        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center text-slate-500">
+            <p>Loading your plan...</p>
+        </div>
+    )
+  }
+
+  if (!session) {
+    return <Auth />;
+  }
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-200 font-sans transition-colors duration-300">

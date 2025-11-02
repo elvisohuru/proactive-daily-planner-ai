@@ -14,10 +14,10 @@ const TodaysPlan: React.FC = () => {
   const goals = useAppStore((state) => state.goals);
   const { addTask, deleteTask, toggleTask, startTimer, reorderTasks } = useAppStore();
 
-  const handleAddTask = (e: React.FormEvent) => {
+  const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newTaskText.trim()) {
-      addTask(newTaskText.trim(), newGoalId);
+      await addTask(newTaskText.trim(), newGoalId);
       setNewTaskText('');
       setNewGoalId(null);
     }
@@ -74,7 +74,7 @@ const TodaysPlan: React.FC = () => {
       <Reorder.Group as="ul" axis="y" values={tasks} onReorder={reorderTasks} className="space-y-2">
         <AnimatePresence>
           {tasks.map((task) => {
-            const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;
+            const linkedGoal = task.goal_id ? goals.find(g => g.id === task.goal_id) : null;
             return (
               <Reorder.Item
                 key={task.id}
