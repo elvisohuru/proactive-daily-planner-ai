@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { v4 as uuidv4 } from 'uuid';
 import { getTodayDateString } from '../utils/dateUtils';
 import {
   Task,
@@ -14,8 +15,8 @@ import {
   PerformanceRecord,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
-import { supabase } from '../lib/supabaseClient';
-import type { Session } from '@supabase/supabase-js';
+import { format } from 'date-fns';
+
 
 interface AppState {
   plan: TodaysPlan;
@@ -27,62 +28,50 @@ interface AppState {
   performanceHistory: PerformanceRecord[];
   theme: Theme;
   isReflectionModalOpen: boolean;
-  session: Session | null;
-  isDataLoading: boolean;
-  isSessionChecked: boolean; // Tracks if the initial session check is complete
 
   // Actions
   initialize: () => void;
-  addTask: (text: string, goalId: string | null) => Promise<void>;
-  toggleTask: (id: string) => Promise<void>;
-  deleteTask: (id: string) => Promise<void>;
-  reorderTasks: (tasks: Task[]) => Promise<void>;
+  addTask: (text: string, goalId: string | null) => void;
+  toggleTask: (id: string) => void;
+  deleteTask: (id: string) => void;
+  reorderTasks: (tasks: Task[]) => void;
+  linkTaskToGoal: (taskId: string, goalId: string | null) => void;
   startTimer: (id: string, type: 'plan' | 'routine', task: string, durationMinutes: number) => void;
   updateTimer: (updates: Partial<ActiveTask>) => void;
-  completeActiveTask: () => Promise<void>;
+  finishTimer: () => void;
+  completeActiveTask: () => void;
   extendTimer: (minutes: number) => void;
-  addLog: (log: Omit<LogEntry, 'id' | 'timestamp'>) => Promise<void>;
-  addGoal: (text: string, category: GoalCategory, deadline: string | null) => Promise<void>;
-  toggleGoal: (id: string) => Promise<void>;
-  deleteGoal: (id: string) => Promise<void>;
-  addRoutineTask: (text: string, goalId: string | null) => Promise<void>;
-  toggleRoutineTask: (id: string, skipLog?: boolean) => Promise<void>;
-  deleteRoutineTask: (id: string) => Promise<void>;
-  reorderRoutine: (routine: RoutineTask[]) => Promise<void>;
+  addLog: (log: Omit<LogEntry, 'id'|'timestamp'|'dateString'>) => void;
+  addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
+  toggleGoal: (id: string) => void;
+  deleteGoal: (id: string) => void;
+  addRoutineTask: (text: string, goalId: string | null) => void;
+  toggleRoutineTask: (id: string, skipLog?: boolean) => void;
+  deleteRoutineTask: (id: string) => void;
+  reorderRoutine: (routine: RoutineTask[]) => void;
   addReflection: (well: string, improve: string) => void;
   toggleTheme: () => void;
   setReflectionModalOpen: (isOpen: boolean) => void;
-  setSession: (session: Session | null) => void;
-  setSessionChecked: (isChecked: boolean) => void;
-  clearUserState: () => void;
-  fetchAllData: () => Promise<void>;
 }
-
-const initialState = {
-  plan: { date: getTodayDateString(), tasks: [] },
-  logs: [],
-  goals: [],
-  routine: [],
-  activeTask: null,
-  reflections: [],
-  performanceHistory: [],
-  isReflectionModalOpen: false,
-};
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       // State
-      ...initialState,
+      plan: { date: getTodayDateString(), tasks: [] },
+      logs: [],
+      goals: [],
+      routine: [],
+      activeTask: null,
+      reflections: [],
+      performanceHistory: [],
       theme: 'dark',
-      session: null,
-      isDataLoading: true,
-      isSessionChecked: false,
+      isReflectionModalOpen: false,
 
       // Actions
       initialize: () => {
         const today = getTodayDateString();
-        const { plan, routine, performanceHistory = [] } = get();
+        const { plan, routine, performanceHistory } = get();
 
         if (plan.date !== today) {
           const totalPlanTasks = plan.tasks.length;
@@ -98,7 +87,7 @@ export const useAppStore = create<AppState>()(
             const score = Math.round((completedTasks / totalTasks) * 100);
             const newRecord: PerformanceRecord = { date: plan.date, score };
             
-            const updatedHistory = (performanceHistory || []).filter(p => p.date !== newRecord.date);
+            const updatedHistory = performanceHistory.filter(p => p.date !== newRecord.date);
             updatedHistory.push(newRecord);
             
             const sortedHistory = updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -106,139 +95,56 @@ export const useAppStore = create<AppState>()(
             set({ performanceHistory: prunedHistory });
           }
           
+          // Reset for the new day
           set({
-            plan: { date: today, tasks: [] }, // Will be populated by fetchAllData
+            plan: { date: today, tasks: [] },
             activeTask: null,
             routine: get().routine.map(task => ({ ...task, completed: false }))
           });
         }
       },
-      
-      fetchAllData: async () => {
-        set({ isDataLoading: true });
-        try {
-          const today = getTodayDateString();
-          const [goalsRes, tasksRes, routineRes, logsRes] = await Promise.all([
-            supabase.from('goals').select('*').order('created_at', { ascending: true }),
-            supabase.from('tasks').select('*').eq('date', today).order('position', { ascending: true }),
-            supabase.from('routine_tasks').select('*').order('position', { ascending: true }),
-            supabase.from('logs').select('*').like('timestamp', `${today}%`).order('timestamp', { ascending: false })
-          ]);
 
-          if (goalsRes.error) throw goalsRes.error;
-          if (tasksRes.error) throw tasksRes.error;
-          if (routineRes.error) throw routineRes.error;
-          if (logsRes.error) throw logsRes.error;
-
-          set({
-            goals: goalsRes.data || [],
-            plan: { date: today, tasks: tasksRes.data || [] },
-            routine: (routineRes.data || []).map(r => ({ ...r, completed: false })), // Start fresh daily
-            logs: logsRes.data || [],
-            isDataLoading: false
-          });
-
-        } catch (error: any) {
-          console.error('Error fetching data:', error.message);
-          set({ isDataLoading: false });
-        }
+      addTask: (text, goalId) => {
+        const newTask: Task = { id: uuidv4(), text, completed: false, goalId };
+        set((state) => ({
+          plan: { ...state.plan, tasks: [...state.plan.tasks, newTask] },
+        }));
       },
 
-      addTask: async (text, goal_id) => {
-        const { plan, session } = get();
-        if (!session?.user) return;
-
-        const newPosition = plan.tasks.length > 0 ? Math.max(...plan.tasks.map(t => t.position)) + 1 : 0;
-        
-        const newTaskStub: Task = {
-            id: `temp-${Date.now()}`,
-            text,
-            completed: false,
-            goal_id,
-            position: newPosition,
-        };
-        
-        set({ plan: { ...plan, tasks: [...plan.tasks, newTaskStub] } });
-
-        const { data, error } = await supabase
-            .from('tasks')
-            .insert({
-                text,
-                goal_id,
-                date: plan.date,
-                position: newPosition,
-                user_id: session.user.id
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Error adding task:", error.message);
-            set({ plan: { ...plan, tasks: plan.tasks.filter(t => t.id !== newTaskStub.id) } }); // Revert on error
-            return;
-        }
-
-        set({ plan: { ...plan, tasks: plan.tasks.map(t => t.id === newTaskStub.id ? data : t) } });
-      },
-
-      toggleTask: async (id) => {
-        const task = get().plan.tasks.find(t => t.id === id);
-        if (!task) return;
-        
-        set(state => ({
+      toggleTask: (id) => {
+        set((state) => ({
           plan: {
             ...state.plan,
-            tasks: state.plan.tasks.map(t => t.id === id ? { ...t, completed: !t.completed } : t)
-          }
+            tasks: state.plan.tasks.map((task) =>
+              task.id === id ? { ...task, completed: !task.completed } : task
+            ),
+          },
         }));
-
-        const { error } = await supabase
-          .from('tasks')
-          .update({ completed: !task.completed })
-          .eq('id', id);
-
-        if (error) {
-          console.error("Error toggling task:", error.message);
-          set(state => ({ // Revert on error
-            plan: {
-              ...state.plan,
-              tasks: state.plan.tasks.map(t => t.id === id ? { ...t, completed: task.completed } : t)
-            }
-          }));
-        }
       },
 
-      deleteTask: async (id) => {
-        const originalTasks = get().plan.tasks;
-        const tasksToKeep = originalTasks.filter(task => task.id !== id);
-        
-        set(state => ({ plan: { ...state.plan, tasks: tasksToKeep } }));
-        
-        const { error } = await supabase.from('tasks').delete().eq('id', id);
-        
-        if (error) {
-            console.error("Error deleting task:", error.message);
-            set(state => ({ plan: { ...state.plan, tasks: originalTasks } })); // Revert
-        }
+      deleteTask: (id) => {
+        set((state) => ({
+          plan: { ...state.plan, tasks: state.plan.tasks.filter((task) => task.id !== id) },
+        }));
       },
       
-      reorderTasks: async (tasks) => {
-        const originalTasks = get().plan.tasks;
-        set(state => ({ plan: { ...state.plan, tasks } }));
-
-        const updates = tasks.map((task, index) => ({
-            id: task.id,
-            position: index,
+      reorderTasks: (tasks) => {
+        set((state) => ({
+          plan: { ...state.plan, tasks },
         }));
-
-        const { error } = await supabase.from('tasks').upsert(updates);
-
-        if (error) {
-            console.error("Error reordering tasks:", error.message);
-            set(state => ({ plan: { ...state.plan, tasks: originalTasks } })); // Revert
-        }
       },
       
+      linkTaskToGoal: (taskId, goalId) => {
+        set((state) => ({
+          plan: {
+            ...state.plan,
+            tasks: state.plan.tasks.map((task) =>
+              task.id === taskId ? { ...task, goalId } : task
+            ),
+          },
+        }));
+      },
+
       startTimer: (id, type, task, durationMinutes) => {
         const durationSeconds = durationMinutes * 60;
         set({
@@ -258,19 +164,27 @@ export const useAppStore = create<AppState>()(
           activeTask: state.activeTask ? { ...state.activeTask, ...updates } : null,
         }));
       },
+
+      finishTimer: () => {
+        const { activeTask } = get();
+        if (activeTask) {
+          get().addLog({ task: activeTask.task, duration: activeTask.totalDuration });
+          set({ activeTask: null });
+        }
+      },
       
-      completeActiveTask: async () => {
+      completeActiveTask: () => {
         const { activeTask, toggleTask, toggleRoutineTask, addLog } = get();
         if (activeTask) {
           const timeSpent = activeTask.totalDuration - activeTask.remainingSeconds;
           if (timeSpent > 0) {
-            await addLog({ task: activeTask.task, duration: timeSpent });
+            addLog({ task: activeTask.task, duration: timeSpent });
           }
 
           if (activeTask.type === 'plan') {
-            await toggleTask(activeTask.id);
+            toggleTask(activeTask.id);
           } else if (activeTask.type === 'routine') {
-            await toggleRoutineTask(activeTask.id, true);
+            toggleRoutineTask(activeTask.id, true); // Pass skipLog = true
           }
 
           set({ activeTask: null });
@@ -286,120 +200,61 @@ export const useAppStore = create<AppState>()(
               ...state.activeTask,
               remainingSeconds: state.activeTask.remainingSeconds + additionalSeconds,
               totalDuration: state.activeTask.totalDuration + additionalSeconds,
-              isPaused: false,
+              isPaused: false, // Automatically resume when extending
             },
           };
         });
       },
 
-      addLog: async (log) => {
-        const { session } = get();
-        if (!session?.user) return;
-
-        const { data, error } = await supabase
-            .from('logs')
-            .insert({
-                task: log.task,
-                duration: log.duration,
-                user_id: session.user.id
-            })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Error adding log:", error.message);
-            return;
-        }
-        
-        set((state) => ({ logs: [data as LogEntry, ...state.logs] }));
+      addLog: (log) => {
+        const newLog: LogEntry = {
+          ...log,
+          id: uuidv4(),
+          timestamp: Date.now(),
+          dateString: getTodayDateString(),
+        };
+        set((state) => ({ logs: [newLog, ...state.logs] }));
       },
 
-      addGoal: async (text, category, deadline) => {
-        const { session } = get();
-        if (!session?.user) return;
-
-        try {
-            const { data, error } = await supabase
-              .from('goals')
-              .insert({ text, category, deadline, user_id: session.user.id })
-              .select()
-              .single();
-
-            if (error) throw error;
-            
-            if (data) {
-                set((state) => ({ goals: [...state.goals, data as Goal] }));
-            }
-        } catch(error: any) {
-            console.error('Error adding goal:', error.message);
-        }
+      addGoal: (text, category, deadline) => {
+        const newGoal: Goal = {
+          id: uuidv4(),
+          text,
+          category,
+          deadline,
+          completed: false,
+        };
+        set((state) => ({ goals: [...state.goals, newGoal] }));
       },
 
-      toggleGoal: async (id) => {
-        const goal = get().goals.find((g) => g.id === id);
-        if (!goal) return;
-
-        try {
-            const { error } = await supabase
-              .from('goals')
-              .update({ completed: !goal.completed })
-              .eq('id', id);
-            
-            if (error) throw error;
-
-            set((state) => ({
-              goals: state.goals.map((g) =>
-                g.id === id ? { ...g, completed: !g.completed } : g
-              ),
-            }));
-        } catch(error: any) {
-            console.error('Error toggling goal:', error.message);
-        }
+      toggleGoal: (id) => {
+        set((state) => ({
+          goals: state.goals.map((goal) =>
+            goal.id === id ? { ...goal, completed: !goal.completed } : goal
+          ),
+        }));
       },
 
-      deleteGoal: async (id) => {
-        try {
-            const { error } = await supabase
-              .from('goals')
-              .delete()
-              .eq('id', id);
-            
-            if (error) throw error;
-
-            set((state) => ({
-              goals: state.goals.filter((goal) => goal.id !== id),
-            }));
-        } catch (error: any) {
-            console.error('Error deleting goal:', error.message);
-        }
+      deleteGoal: (id) => {
+        set((state) => ({
+          goals: state.goals.filter((goal) => goal.id !== id),
+        }));
       },
 
-      addRoutineTask: async (text, goal_id) => {
-         const { routine, session } = get();
-        if (!session?.user) return;
-
-        const newPosition = routine.length > 0 ? Math.max(...routine.map(t => t.position)) + 1 : 0;
-        
-        const { data, error } = await supabase
-            .from('routine_tasks')
-            .insert({ text, goal_id, position: newPosition, user_id: session.user.id })
-            .select()
-            .single();
-
-        if (error) {
-            console.error("Error adding routine task:", error.message);
-            return;
-        }
-
-        set({ routine: [...routine, { ...data, completed: false }] });
+      addRoutineTask: (text, goalId) => {
+        const newRoutineTask: RoutineTask = { id: uuidv4(), text, completed: false, goalId };
+        set((state) => ({
+          routine: [...state.routine, newRoutineTask],
+        }));
       },
 
-      toggleRoutineTask: async (id, skipLog = false) => {
+      toggleRoutineTask: (id, skipLog = false) => {
         const { routine, addLog } = get();
         const taskToToggle = routine.find((task) => task.id === id);
 
+        // When marking a routine task as complete, add it to the log.
         if (!skipLog && taskToToggle && !taskToToggle.completed) {
-          await addLog({ task: taskToToggle.text, duration: 0 });
+          addLog({ task: taskToToggle.text, duration: 0 });
         }
         
         set((state) => ({
@@ -409,38 +264,14 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      deleteRoutineTask: async (id) => {
-        const originalRoutine = get().routine;
-        set({ routine: originalRoutine.filter((task) => task.id !== id) });
-        
-        const { error } = await supabase.from('routine_tasks').delete().eq('id', id);
-        
-        if (error) {
-            console.error("Error deleting routine task:", error.message);
-            set({ routine: originalRoutine }); // Revert
-        }
+      deleteRoutineTask: (id) => {
+        set((state) => ({
+          routine: state.routine.filter((task) => task.id !== id),
+        }));
       },
       
-      reorderRoutine: async (routine) => {
-        const originalRoutine = get().routine;
-        // Keep client-side `completed` state during reorder
-        const reorderedWithState = routine.map(task => {
-            const originalTask = originalRoutine.find(t => t.id === task.id);
-            return { ...task, completed: originalTask ? originalTask.completed : false };
-        });
-
-        set({ routine: reorderedWithState });
-
-        const updates = routine.map((task, index) => ({
-            id: task.id,
-            position: index,
-        }));
-
-        const { error } = await supabase.from('routine_tasks').upsert(updates);
-        if (error) {
-            console.error("Error reordering routine:", error.message);
-            set({ routine: originalRoutine }); // Revert
-        }
+      reorderRoutine: (routine) => {
+        set({ routine });
       },
 
       addReflection: (well, improve) => {
@@ -464,31 +295,10 @@ export const useAppStore = create<AppState>()(
       setReflectionModalOpen: (isOpen) => {
         set({ isReflectionModalOpen: isOpen });
       },
-
-      setSession: (session) => {
-        set({ session });
-        if (!session) {
-          get().clearUserState();
-        }
-      },
-
-      setSessionChecked: (isChecked) => {
-        set({ isSessionChecked: isChecked });
-      },
-      
-      clearUserState: () => {
-        set({...initialState, goals: [], isDataLoading: false, session: null, isSessionChecked: true});
-      }
     }),
     {
       name: STORAGE_KEYS.APP_STATE,
       storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-          // Only persist UI settings and non-server data
-          theme: state.theme,
-          reflections: state.reflections,
-          performanceHistory: state.performanceHistory,
-      }),
     }
   )
 );

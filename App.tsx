@@ -10,24 +10,14 @@ import DailyReflection from './components/DailyReflection';
 import DailyRoutine from './components/DailyRoutine';
 import ReflectionTrigger from './components/ReflectionTrigger';
 import PerformanceHistory from './components/PerformanceHistory';
-import { supabase } from './lib/supabaseClient';
-import Auth from './components/Auth';
 
 function App() {
-  const { 
-    theme, 
-    initialize, 
-    session, 
-    setSession, 
-    fetchAllData, 
-    isDataLoading,
-    isSessionChecked,
-    setSessionChecked
-  } = useAppStore();
+  const { theme, initialize } = useAppStore();
 
   useEffect(() => {
     initialize();
-  }, [initialize]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (theme === 'dark') {
@@ -36,40 +26,6 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
-
-  useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setSessionChecked(true); // The session state is now known.
-      if (session) {
-        fetchAllData();
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setSession, fetchAllData, setSessionChecked]);
-  
-  if (!isSessionChecked) {
-    return (
-        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center text-slate-500">
-            <p>Initializing...</p>
-        </div>
-    )
-  }
-
-  if (!session) {
-    return <Auth />;
-  }
-  
-  if (isDataLoading) {
-    return (
-        <div className="bg-slate-50 dark:bg-slate-900 min-h-screen flex items-center justify-center text-slate-500">
-            <p>Loading your plan...</p>
-        </div>
-    )
-  }
 
   return (
     <div className="bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-200 font-sans transition-colors duration-300">

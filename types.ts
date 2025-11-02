@@ -1,9 +1,8 @@
 export type Task = {
-  id: string; // This will be a UUID from the DB
+  id: string;
   text: string;
   completed: boolean;
-  goal_id: string | null;
-  position: number;
+  goalId: string | null;
 };
 
 export type TodaysPlan = {
@@ -12,11 +11,11 @@ export type TodaysPlan = {
 };
 
 export type LogEntry = {
-  id: string; // This will be a UUID from the DB
+  id: string;
   task: string;
   duration: number; // in seconds
-  timestamp: string; // ISO string from the DB
-  dateString?: string; // This can be derived client-side
+  timestamp: number;
+  dateString: string;
 };
 
 export type GoalCategory = 'Short Term' | 'Long Term';
@@ -47,11 +46,10 @@ export type Reflection = {
 export type Theme = 'light' | 'dark';
 
 export type RoutineTask = {
-  id: string; // This will be a UUID from the DB
+  id: string;
   text: string;
-  completed: boolean; // Note: This state is client-side only and resets daily
-  goal_id: string | null;
-  position: number;
+  completed: boolean;
+  goalId: string | null;
 };
 
 export type PerformanceRecord = {

@@ -11,10 +11,10 @@ const DailyRoutine: React.FC = () => {
   const [timerDuration, setTimerDuration] = useState('60');
   const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer } = useAppStore();
 
-  const handleAddRoutine = async (e: React.FormEvent) => {
+  const handleAddRoutine = (e: React.FormEvent) => {
     e.preventDefault();
     if (newRoutineText.trim()) {
-      await addRoutineTask(newRoutineText.trim(), newGoalId);
+      addRoutineTask(newRoutineText.trim(), newGoalId);
       setNewRoutineText('');
       setNewGoalId(null);
     }
@@ -72,7 +72,7 @@ const DailyRoutine: React.FC = () => {
       </form>
       <Reorder.Group as="ul" axis="y" values={routine} onReorder={reorderRoutine} className="space-y-2">
         {routine.map((task: RoutineTask) => {
-          const linkedGoal = task.goal_id ? goals.find(g => g.id === task.goal_id) : null;
+          const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;
           return (
             <Reorder.Item
               key={task.id}
