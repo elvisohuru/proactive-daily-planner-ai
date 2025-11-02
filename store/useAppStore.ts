@@ -15,6 +15,8 @@ import {
   PerformanceRecord,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
+import { format } from 'date-fns';
+
 
 interface AppState {
   plan: TodaysPlan;
@@ -29,10 +31,11 @@ interface AppState {
 
   // Actions
   initialize: () => void;
-  addTask: (text: string) => void;
+  addTask: (text: string, goalId: string | null) => void;
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   reorderTasks: (tasks: Task[]) => void;
+  linkTaskToGoal: (taskId: string, goalId: string | null) => void;
   startTimer: (id: string, type: 'plan' | 'routine', task: string, durationMinutes: number) => void;
   updateTimer: (updates: Partial<ActiveTask>) => void;
   finishTimer: () => void;
@@ -42,7 +45,7 @@ interface AppState {
   addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
   toggleGoal: (id: string) => void;
   deleteGoal: (id: string) => void;
-  addRoutineTask: (text: string) => void;
+  addRoutineTask: (text: string, goalId: string | null) => void;
   toggleRoutineTask: (id: string, skipLog?: boolean) => void;
   deleteRoutineTask: (id: string) => void;
   reorderRoutine: (routine: RoutineTask[]) => void;
@@ -70,39 +73,39 @@ export const useAppStore = create<AppState>()(
         const today = getTodayDateString();
         const { plan, routine, performanceHistory } = get();
 
-        // If the stored plan is for a previous day and has tasks, archive its performance.
-        if (plan.date !== today && plan.tasks.length > 0) {
-          const totalTasks = plan.tasks.length;
-          const completedTasks = plan.tasks.filter((task) => task.completed).length;
-          const score = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+        if (plan.date !== today) {
+          const totalPlanTasks = plan.tasks.length;
+          const completedPlanTasks = plan.tasks.filter((t) => t.completed).length;
           
-          const newRecord: PerformanceRecord = { date: plan.date, score };
+          const totalRoutineTasks = routine.length;
+          const completedRoutineTasks = routine.filter((r) => r.completed).length;
 
-          const updatedHistory = performanceHistory.filter(p => p.date !== newRecord.date);
-          updatedHistory.push(newRecord);
+          const totalTasks = totalPlanTasks + totalRoutineTasks;
+          const completedTasks = completedPlanTasks + completedRoutineTasks;
+
+          if (totalTasks > 0) {
+            const score = Math.round((completedTasks / totalTasks) * 100);
+            const newRecord: PerformanceRecord = { date: plan.date, score };
+            
+            const updatedHistory = performanceHistory.filter(p => p.date !== newRecord.date);
+            updatedHistory.push(newRecord);
+            
+            const sortedHistory = updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+            const prunedHistory = sortedHistory.slice(0, 30);
+            set({ performanceHistory: prunedHistory });
+          }
           
-          // Keep the last 30 days of history
-          const sortedHistory = updatedHistory.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-          const prunedHistory = sortedHistory.slice(0, 30);
-
+          // Reset for the new day
           set({
-            performanceHistory: prunedHistory,
             plan: { date: today, tasks: [] },
             activeTask: null,
-            routine: routine.map(task => ({ ...task, completed: false }))
-          });
-        } else if (plan.date !== today) {
-          // Handle the case where the day changes but there were no tasks.
-          set({
-            plan: { date: today, tasks: [] },
-            activeTask: null,
-            routine: routine.map(task => ({ ...task, completed: false }))
+            routine: get().routine.map(task => ({ ...task, completed: false }))
           });
         }
       },
 
-      addTask: (text) => {
-        const newTask: Task = { id: uuidv4(), text, completed: false };
+      addTask: (text, goalId) => {
+        const newTask: Task = { id: uuidv4(), text, completed: false, goalId };
         set((state) => ({
           plan: { ...state.plan, tasks: [...state.plan.tasks, newTask] },
         }));
@@ -128,6 +131,17 @@ export const useAppStore = create<AppState>()(
       reorderTasks: (tasks) => {
         set((state) => ({
           plan: { ...state.plan, tasks },
+        }));
+      },
+      
+      linkTaskToGoal: (taskId, goalId) => {
+        set((state) => ({
+          plan: {
+            ...state.plan,
+            tasks: state.plan.tasks.map((task) =>
+              task.id === taskId ? { ...task, goalId } : task
+            ),
+          },
         }));
       },
 
@@ -227,8 +241,8 @@ export const useAppStore = create<AppState>()(
         }));
       },
 
-      addRoutineTask: (text) => {
-        const newRoutineTask: RoutineTask = { id: uuidv4(), text, completed: false };
+      addRoutineTask: (text, goalId) => {
+        const newRoutineTask: RoutineTask = { id: uuidv4(), text, completed: false, goalId };
         set((state) => ({
           routine: [...state.routine, newRoutineTask],
         }));
@@ -271,7 +285,7 @@ export const useAppStore = create<AppState>()(
         }));
         get().setReflectionModalOpen(false);
       },
-
+      
       toggleTheme: () => {
         set((state) => ({
           theme: state.theme === 'light' ? 'dark' : 'light',

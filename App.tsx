@@ -38,9 +38,9 @@ function App() {
             <TodaysPlan />
           </div>
           <div className="space-y-6">
-            <TimeLog />
             <MyGoals />
             <ReflectionTrigger />
+            <TimeLog />
             <PerformanceHistory />
           </div>
         </div>

@@ -2,6 +2,7 @@ export type Task = {
   id: string;
   text: string;
   completed: boolean;
+  goalId: string | null;
 };
 
 export type TodaysPlan = {
@@ -48,6 +49,7 @@ export type RoutineTask = {
   id: string;
   text: string;
   completed: boolean;
+  goalId: string | null;
 };
 
 export type PerformanceRecord = {

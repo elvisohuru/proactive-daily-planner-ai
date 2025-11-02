@@ -1,13 +1,30 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { formatTime } from '../utils/dateUtils';
-import { Play, Pause, CheckSquare, Plus } from 'lucide-react';
+import { Play, Pause, CheckSquare, Plus, CloudRain, Flame, Coffee, VolumeX, Volume2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ambientPlayer } from '../utils/ambientPlayer';
+import { playTimerUpSound, stopTimerUpSound } from '../utils/sound';
 
 const TaskTimer: React.FC = () => {
   const { activeTask, updateTimer, completeActiveTask, extendTimer } = useAppStore();
   const intervalRef = useRef<number | null>(null);
+  const prevSecondsRef = useRef<number>();
   const [extensionMinutes, setExtensionMinutes] = useState('60');
+  const [activeSound, setActiveSound] = useState<'rain' | 'fire' | 'cafe' | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+
+  useEffect(() => {
+    if (activeTask) {
+      if (activeTask.remainingSeconds <= 0 && prevSecondsRef.current && prevSecondsRef.current > 0) {
+        playTimerUpSound();
+      }
+      prevSecondsRef.current = activeTask.remainingSeconds;
+    } else {
+      prevSecondsRef.current = undefined;
+    }
+  }, [activeTask]);
+
 
   useEffect(() => {
     if (activeTask && !activeTask.isPaused) {
@@ -27,6 +44,14 @@ const TaskTimer: React.FC = () => {
     };
   }, [activeTask, updateTimer]);
   
+  // Cleanup sound on unmount
+  useEffect(() => {
+    return () => {
+      ambientPlayer.stop();
+      stopTimerUpSound();
+    };
+  }, []);
+  
   const handlePauseResume = () => {
     if (activeTask) {
       updateTimer({ isPaused: !activeTask.isPaused });
@@ -35,6 +60,8 @@ const TaskTimer: React.FC = () => {
 
   const handleCompleteAndLog = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
+    stopTimerUpSound();
+    ambientPlayer.stop(); // Stop sound on complete
     completeActiveTask();
   };
   
@@ -42,9 +69,25 @@ const TaskTimer: React.FC = () => {
     e.preventDefault();
     const minutes = parseInt(extensionMinutes, 10);
     if (!isNaN(minutes) && minutes > 0) {
+      stopTimerUpSound();
       extendTimer(minutes);
       setExtensionMinutes('60'); // Reset for next time
     }
+  };
+  
+  const toggleSound = (sound: 'rain' | 'fire' | 'cafe') => {
+    if (activeSound === sound) {
+      ambientPlayer.stop();
+      setActiveSound(null);
+    } else {
+      ambientPlayer.play(sound);
+      setActiveSound(sound);
+    }
+  };
+
+  const handleMute = () => {
+    ambientPlayer.toggleMute();
+    setIsMuted(!isMuted);
   };
 
   const isTimeUp = activeTask && activeTask.remainingSeconds <= 0;
@@ -58,6 +101,15 @@ const TaskTimer: React.FC = () => {
           exit={{ opacity: 0 }}
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/90 p-4 text-white backdrop-blur-md"
         >
+           <div className="absolute top-4 right-4 flex items-center gap-2">
+            <button onClick={() => toggleSound('rain')} className={`p-2 rounded-full transition-colors ${activeSound === 'rain' ? 'bg-white/30 text-white' : 'bg-white/10 text-slate-300'} hover:bg-white/20`}><CloudRain size={20} /></button>
+            <button onClick={() => toggleSound('fire')} className={`p-2 rounded-full transition-colors ${activeSound === 'fire' ? 'bg-white/30 text-white' : 'bg-white/10 text-slate-300'} hover:bg-white/20`}><Flame size={20} /></button>
+            <button onClick={() => toggleSound('cafe')} className={`p-2 rounded-full transition-colors ${activeSound === 'cafe' ? 'bg-white/30 text-white' : 'bg-white/10 text-slate-300'} hover:bg-white/20`}><Coffee size={20} /></button>
+            <button onClick={handleMute} className="p-2 rounded-full bg-white/10 text-slate-300 hover:bg-white/20">
+              {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+            </button>
+          </div>
+          
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
