@@ -6,7 +6,7 @@ import { motion, AnimatePresence, Reorder } from 'framer-motion';
 const TodaysPlan: React.FC = () => {
   const [newTaskText, setNewTaskText] = useState('');
   const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
-  const [timerDuration, setTimerDuration] = useState('25');
+  const [timerDuration, setTimerDuration] = useState('60');
   const tasks = useAppStore((state) => state.plan.tasks);
   const { addTask, deleteTask, toggleTask, startTimer, reorderTasks } = useAppStore();
 
@@ -20,7 +20,7 @@ const TodaysPlan: React.FC = () => {
   
   const handleStartTimerSetup = (taskId: string) => {
     setTimerSetupTaskId(taskId);
-    setTimerDuration('25'); // Reset to default when opening
+    setTimerDuration('60'); // Reset to default when opening
   };
 
   const handleCancelTimerSetup = () => {
@@ -37,7 +37,7 @@ const TodaysPlan: React.FC = () => {
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Plan for Today</h2>
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Planned Tasks for Today</h2>
       <form onSubmit={handleAddTask} className="flex gap-2 mb-4">
         <input
           type="text"
@@ -76,7 +76,18 @@ const TodaysPlan: React.FC = () => {
                 }`}
                 aria-label={task.completed ? 'Mark task as incomplete' : 'Mark task as complete'}
               >
-                {task.completed && <Check size={16} className="text-white" />}
+                <AnimatePresence>
+                  {task.completed && (
+                    <motion.div
+                      initial={{ scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.5, opacity: 0 }}
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    >
+                      <Check size={16} className="text-white" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </button>
               <span className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
                 {task.text}

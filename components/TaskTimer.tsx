@@ -1,9 +1,7 @@
-
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { formatTime } from '../utils/dateUtils';
 import { Play, Pause, Square } from 'lucide-react';
-import { playTimerFinishSound } from '../utils/sound';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const TaskTimer: React.FC = () => {
@@ -13,6 +11,7 @@ const TaskTimer: React.FC = () => {
   useEffect(() => {
     if (activeTask && !activeTask.isPaused) {
       intervalRef.current = window.setInterval(() => {
+        // Safe to access activeTask here because this effect re-runs when it changes.
         updateTimer({ remainingSeconds: activeTask.remainingSeconds - 1 });
       }, 1000);
     } else {
@@ -20,14 +19,12 @@ const TaskTimer: React.FC = () => {
     }
 
     if (activeTask && activeTask.remainingSeconds <= 0) {
-      playTimerFinishSound();
       finishTimer();
     }
     
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTask, updateTimer, finishTimer]);
   
   const handlePauseResume = () => {

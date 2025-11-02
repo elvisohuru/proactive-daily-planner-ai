@@ -83,16 +83,14 @@ export const useAppStore = create<AppState>()(
       },
 
       toggleTask: (id) => {
-        set((state) => {
-          const updatedTasks = state.plan.tasks.map((task) =>
-            task.id === id ? { ...task, completed: !task.completed } : task
-          );
-          const allCompleted = updatedTasks.length > 0 && updatedTasks.every(t => t.completed);
-          return {
-            plan: { ...state.plan, tasks: updatedTasks },
-            isReflectionModalOpen: allCompleted ? true : state.isReflectionModalOpen
-          };
-        });
+        set((state) => ({
+          plan: {
+            ...state.plan,
+            tasks: state.plan.tasks.map((task) =>
+              task.id === id ? { ...task, completed: !task.completed } : task
+            ),
+          },
+        }));
       },
 
       deleteTask: (id) => {

@@ -1,22 +1,22 @@
-
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getTodayDateString } from '../utils/dateUtils';
 
 const DailyReflection: React.FC = () => {
   const { isReflectionModalOpen, setReflectionModalOpen, addReflection, reflections } = useAppStore();
-  const today = new Date().toISOString().split('T')[0];
+  const today = getTodayDateString();
   const hasReflectedToday = reflections.some(r => r.date === today);
 
   const [well, setWell] = useState('');
   const [improve, setImprove] = useState('');
   
   useEffect(() => {
-    if (hasReflectedToday) {
+    if (hasReflectedToday && isReflectionModalOpen) {
         setReflectionModalOpen(false);
     }
-  }, [hasReflectedToday, setReflectionModalOpen]);
+  }, [hasReflectedToday, isReflectionModalOpen, setReflectionModalOpen]);
 
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -54,7 +54,7 @@ const DailyReflection: React.FC = () => {
               <X size={24} />
             </button>
             <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 mb-4">Daily Reflection</h2>
-            <p className="text-slate-600 dark:text-slate-400 mb-6">Great job completing your tasks! Take a moment to reflect.</p>
+            <p className="text-slate-600 dark:text-slate-400 mb-6">Take a moment to reflect on your day.</p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label htmlFor="well" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">

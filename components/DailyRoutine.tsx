@@ -1,18 +1,37 @@
 import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Check, Repeat, GripVertical } from 'lucide-react';
-import { Reorder } from 'framer-motion';
+import { Plus, Trash2, Check, Repeat, GripVertical, Play, X } from 'lucide-react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { RoutineTask } from '../types';
 
 const DailyRoutine: React.FC = () => {
   const [newRoutineText, setNewRoutineText] = useState('');
-  const { routine, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine } = useAppStore();
+  const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
+  const [timerDuration, setTimerDuration] = useState('60');
+  const { routine, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer } = useAppStore();
 
   const handleAddRoutine = (e: React.FormEvent) => {
     e.preventDefault();
     if (newRoutineText.trim()) {
       addRoutineTask(newRoutineText.trim());
       setNewRoutineText('');
+    }
+  };
+  
+  const handleStartTimerSetup = (taskId: string) => {
+    setTimerSetupTaskId(taskId);
+    setTimerDuration('60'); // Reset to default when opening
+  };
+
+  const handleCancelTimerSetup = () => {
+    setTimerSetupTaskId(null);
+  };
+
+  const handleConfirmStartTimer = (taskText: string) => {
+    const duration = parseInt(timerDuration, 10);
+    if (!isNaN(duration) && duration > 0) {
+      startTimer(taskText, duration);
+      setTimerSetupTaskId(null);
     }
   };
 
@@ -58,11 +77,71 @@ const DailyRoutine: React.FC = () => {
               }`}
               aria-label={task.completed ? 'Mark routine as incomplete' : 'Mark routine as complete'}
             >
-              {task.completed && <Check size={16} className="text-white" />}
+              <AnimatePresence>
+                {task.completed && (
+                  <motion.div
+                    initial={{ scale: 0.5, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    exit={{ scale: 0.5, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                  >
+                    <Check size={16} className="text-white" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </button>
             <span className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
               {task.text}
             </span>
+
+            {timerSetupTaskId === task.id ? (
+              <form 
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleConfirmStartTimer(task.text);
+                }}
+                className="flex items-center gap-1"
+              >
+                  <input
+                      type="number"
+                      min="1"
+                      value={timerDuration}
+                      onChange={(e) => setTimerDuration(e.target.value)}
+                      className="w-16 bg-slate-200 dark:bg-slate-600 rounded-md px-2 py-1 text-sm text-center focus:ring-2 focus:ring-calm-blue-500 focus:outline-none"
+                      autoFocus
+                      onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                              handleCancelTimerSetup();
+                          }
+                      }}
+                  />
+                  <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
+                  <button 
+                      type="submit"
+                      className="text-calm-green-500 hover:text-calm-green-600 p-1"
+                      aria-label="Confirm start timer"
+                  >
+                      <Check size={18} />
+                  </button>
+                  <button
+                      type="button"
+                      onClick={handleCancelTimerSetup}
+                      className="text-slate-400 hover:text-slate-600 p-1"
+                      aria-label="Cancel timer setup"
+                  >
+                      <X size={18} />
+                  </button>
+              </form>
+            ) : (
+              <button
+                onClick={() => handleStartTimerSetup(task.id)}
+                className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 transition-colors p-1"
+                aria-label="Start Timer for this routine task"
+              >
+                <Play size={18} />
+              </button>
+            )}
+
             <button
               onClick={() => deleteRoutineTask(task.id)}
               className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1"

@@ -8,6 +8,7 @@ import TimeLog from './components/TimeLog';
 import MyGoals from './components/MyGoals';
 import DailyReflection from './components/DailyReflection';
 import DailyRoutine from './components/DailyRoutine';
+import ReflectionTrigger from './components/ReflectionTrigger';
 
 function App() {
   const { theme, initialize } = useAppStore();
@@ -39,6 +40,7 @@ function App() {
             <TaskTimer />
             <TimeLog />
             <MyGoals />
+            <ReflectionTrigger />
           </div>
         </div>
       </main>
