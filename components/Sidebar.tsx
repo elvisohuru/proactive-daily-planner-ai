@@ -5,8 +5,8 @@ import { AppView } from '../types';
 
 const navItems: { view: AppView; label: string; icon: React.ReactNode; id?: string; }[] = [
   { view: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={22} /> },
-  { view: 'goals', label: 'Goals & Projects', icon: <Target size={22} /> },
   { view: 'inbox', label: 'Idea Inbox', icon: <Inbox size={22} />, id: 'onboarding-inbox' },
+  { view: 'goals', label: 'Goals & Projects', icon: <Target size={22} /> },
   { view: 'calendar', label: 'Calendar', icon: <Calendar size={22} /> },
   { view: 'reports', label: 'Reports', icon: <BarChart3 size={22} /> },
   { view: 'insights', label: 'Insights', icon: <Lightbulb size={22} /> },

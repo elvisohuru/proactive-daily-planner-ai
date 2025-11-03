@@ -44,12 +44,12 @@ const getTodaysScheduledRoutineTasks = (routine: RoutineTask[], date: Date): Rou
 export const defaultDashboardLayout: DashboardLayout = [
   'ProductivityScore',
   'ProductivityStreak',
-  'WeeklyGoals',
-  'UnplannedTasks',
   'StartDay',
-  'ReflectionTrigger',
+  'WeeklyGoals',
   'DailyRoutine',
-  'TodaysPlan'
+  'TodaysPlan',
+  'UnplannedTasks',
+  'ReflectionTrigger'
 ];
 
 export const useAppStore = create<AppState>()(
