@@ -93,6 +93,17 @@ export const exportStateToMarkdown = (state: AppState): string => {
     }
     md += '\n';
 
+    // Idea Inbox
+    md += `## Idea Inbox\n`;
+    if (state.inbox && state.inbox.length > 0) {
+        state.inbox.forEach(item => {
+            md += `- ${item.text}\n`;
+        });
+    } else {
+        md += `_Inbox is empty._\n`;
+    }
+    md += '\n';
+
     // Time Logs for Today
     md += `## Today's Time Log\n`;
     const todaysLogs = state.logs.filter(log => log.dateString === state.plan.date);
@@ -133,7 +144,7 @@ const escapeCsvField = (field: any): string => {
     return stringField;
 };
 
-export const convertToCsv = (state: AppState, dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects' | 'weekly'): string => {
+export const convertToCsv = (state: AppState, dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects' | 'weekly' | 'inbox'): string => {
     let data: any[] = [];
     let headers: string[] = [];
 
@@ -145,105 +156,70 @@ export const convertToCsv = (state: AppState, dataType: 'tasks' | 'goals' | 'rou
         case 'goals':
             data = state.goals.flatMap(g => 
                 g.subGoals.length > 0 
-                ? g.subGoals.map(sg => ({
-                    goal_id: g.id,
-                    goal_text: g.text,
-                    goal_category: g.category,
-                    goal_completed: g.completed,
-                    goal_deadline: g.deadline,
-                    goal_archived: g.archived,
-                    subgoal_id: sg.id,
-                    subgoal_text: sg.text,
-                    subgoal_completed: sg.completed,
-                    }))
+                ? g.subGoals.map(sg => ({ 
+                    goal_id: g.id, goal_text: g.text, category: g.category, goal_completed: g.completed, deadline: g.deadline, archived: g.archived, 
+                    sub_goal_id: sg.id, sub_goal_text: sg.text, sub_goal_completed: sg.completed 
+                  }))
                 : [{
-                    goal_id: g.id,
-                    goal_text: g.text,
-                    goal_category: g.category,
-                    goal_completed: g.completed,
-                    goal_deadline: g.deadline,
-                    goal_archived: g.archived,
-                    subgoal_id: '',
-                    subgoal_text: '',
-                    subgoal_completed: null,
-                }]
+                    goal_id: g.id, goal_text: g.text, category: g.category, goal_completed: g.completed, deadline: g.deadline, archived: g.archived,
+                    sub_goal_id: null, sub_goal_text: null, sub_goal_completed: null
+                  }]
             );
-            headers = ['goal_id', 'goal_text', 'goal_category', 'goal_completed', 'goal_deadline', 'goal_archived', 'subgoal_id', 'subgoal_text', 'subgoal_completed'];
+            headers = ['goal_id', 'goal_text', 'category', 'goal_completed', 'deadline', 'archived', 'sub_goal_id', 'sub_goal_text', 'sub_goal_completed'];
             break;
         case 'routine':
             data = state.routine;
-            headers = ['id', 'text', 'completed', 'goalId', 'recurringDays', 'dependsOn'];
+            headers = ['id', 'text', 'completed', 'goalId', 'recurringDays'];
             break;
         case 'logs':
             data = state.logs;
             headers = ['id', 'task', 'duration', 'timestamp', 'dateString'];
             break;
         case 'projects':
-            data = state.projects.flatMap(p => 
-                p.subTasks.length > 0 
+             data = state.projects.flatMap(p => 
+                p.subTasks.length > 0
                 ? p.subTasks.map(st => ({
-                    project_id: p.id,
-                    project_text: p.text,
-                    project_completed: p.completed,
-                    project_deadline: p.deadline,
-                    project_archived: p.archived,
-                    subtask_id: st.id,
-                    subtask_text: st.text,
-                    subtask_completed: st.completed,
-                    }))
+                    project_id: p.id, project_text: p.text, project_completed: p.completed, deadline: p.deadline, archived: p.archived,
+                    sub_task_id: st.id, sub_task_text: st.text, sub_task_completed: st.completed
+                }))
                 : [{
-                    project_id: p.id,
-                    project_text: p.text,
-                    project_completed: p.completed,
-                    project_deadline: p.deadline,
-                    project_archived: p.archived,
-                    subtask_id: '',
-                    subtask_text: '',
-                    subtask_completed: null,
+                    project_id: p.id, project_text: p.text, project_completed: p.completed, deadline: p.deadline, archived: p.archived,
+                    sub_task_id: null, sub_task_text: null, sub_task_completed: null
                 }]
             );
-            headers = ['project_id', 'project_text', 'project_completed', 'project_deadline', 'project_archived', 'subtask_id', 'subtask_text', 'subtask_completed'];
+            headers = ['project_id', 'project_text', 'project_completed', 'deadline', 'archived', 'sub_task_id', 'sub_task_text', 'sub_task_completed'];
             break;
         case 'weekly':
              data = state.weeklyPlan.goals.flatMap(g => 
-                g.subGoals.length > 0 
-                ? g.subGoals.map(sg => ({
-                    week_start_date: state.weeklyPlan.weekStartDate,
-                    goal_id: g.id,
-                    goal_text: g.text,
-                    goal_completed: g.completed,
-                    subgoal_id: sg.id,
-                    subgoal_text: sg.text,
-                    subgoal_completed: sg.completed,
-                    }))
+                g.subGoals.length > 0
+                ? g.subGoals.map(sg => ({ 
+                    week_start_date: state.weeklyPlan.weekStartDate, goal_id: g.id, goal_text: g.text, goal_completed: g.completed,
+                    sub_goal_id: sg.id, sub_goal_text: sg.text, sub_goal_completed: sg.completed 
+                  }))
                 : [{
-                    week_start_date: state.weeklyPlan.weekStartDate,
-                    goal_id: g.id,
-                    goal_text: g.text,
-                    goal_completed: g.completed,
-                    subgoal_id: '',
-                    subgoal_text: '',
-                    subgoal_completed: null,
-                }]
+                    week_start_date: state.weeklyPlan.weekStartDate, goal_id: g.id, goal_text: g.text, goal_completed: g.completed,
+                    sub_goal_id: null, sub_goal_text: null, sub_goal_completed: null
+                  }]
             );
-            headers = ['week_start_date', 'goal_id', 'goal_text', 'goal_completed', 'subgoal_id', 'subgoal_text', 'subgoal_completed'];
+            headers = ['week_start_date', 'goal_id', 'goal_text', 'goal_completed', 'sub_goal_id', 'sub_goal_text', 'sub_goal_completed'];
+            break;
+        case 'inbox':
+            data = state.inbox;
+            headers = ['id', 'text', 'createdAt'];
             break;
     }
 
-    if (data.length === 0) {
-        return 'No data available for export.';
-    }
-
-    const headerRow = headers.map(escapeCsvField).join(',');
-    const dataRows = data.map(row => {
-        return headers.map(header => {
-            let value = row[header as keyof typeof row];
+    const csvRows = [headers.join(',')];
+    data.forEach(item => {
+        const row = headers.map(header => {
+            const value = (item as any)[header];
             if (Array.isArray(value)) {
-                value = value.join(';'); // Use semicolon for multi-value fields
+                return escapeCsvField(value.join(';'));
             }
             return escapeCsvField(value);
-        }).join(',');
+        });
+        csvRows.push(row.join(','));
     });
 
-    return [headerRow, ...dataRows].join('\n');
+    return csvRows.join('\n');
 };

@@ -22,30 +22,95 @@ import WastedTime from './components/WastedTime';
 import WeeklyGoals from './components/WeeklyGoals';
 import Sidebar from './components/Sidebar';
 import AdvancedAnalytics from './components/AdvancedAnalytics';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import TimeAllocationByTag from './components/TimeAllocationByTag';
+import InboxView from './components/InboxView';
+import ProcessInboxItemModal from './components/ProcessInboxItemModal';
+import CalendarView from './components/CalendarView';
+import DashboardCard from './components/DashboardCard';
+import OnboardingGuide from './components/OnboardingGuide';
 
-const DashboardView = () => (
-  <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-    <div className="lg:col-span-3 space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ProductivityScore />
-        <ProductivityStreak />
-      </div>
-      <WeeklyGoals />
-      <StartDay />
-      <DailyRoutine />
-      <TodaysPlan />
+const dashboardComponentMap: { [key: string]: { component: React.FC, title: string, span: string } } = {
+  ProductivityScore: { component: ProductivityScore, title: 'Productivity Score', span: 'lg:col-span-3' },
+  WeeklyGoals: { component: WeeklyGoals, title: "This Week's Focus", span: 'lg:col-span-3' },
+  StartDay: { component: StartDay, title: 'Start Day', span: 'lg:col-span-3' },
+  DailyRoutine: { component: DailyRoutine, title: 'Daily Routine', span: 'lg:col-span-3' },
+  TodaysPlan: { component: TodaysPlan, title: 'Planned Tasks', span: 'lg:col-span-3' },
+  ProductivityStreak: { component: ProductivityStreak, title: 'Productivity Streak', span: 'lg:col-span-2' },
+  UnplannedTasks: { component: UnplannedTasks, title: 'Unplanned Tasks', span: 'lg:col-span-2' },
+  ReflectionTrigger: { component: ReflectionTrigger, title: 'End of Day', span: 'lg:col-span-2' },
+};
+
+const DashboardView = () => {
+  const { dashboardItems, setDashboardItems, isDashboardInReorderMode, setDashboardReorderMode } = useAppStore();
+
+  if (!dashboardItems) {
+    return null;
+  }
+
+  return (
+    <div className="relative">
+      <AnimatePresence>
+        {isDashboardInReorderMode && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="sticky top-0 z-20 mb-4"
+          >
+            <button
+              onClick={() => setDashboardReorderMode(false)}
+              className="w-full bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-bold py-2 px-4 rounded-lg transition"
+            >
+              Done Reordering
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <Reorder.Group
+        values={dashboardItems}
+        onReorder={setDashboardItems}
+        className="flex flex-wrap gap-6"
+      >
+        {dashboardItems.map((componentId) => {
+          const item = dashboardComponentMap[componentId];
+          if (!item) return null;
+          const Component = item.component;
+          
+          // Translate grid spans to flex-basis for a more flexible layout that works with framer-motion
+          const widthClass = item.span === 'lg:col-span-3' 
+            ? 'w-full lg:flex-basis-[calc(60%-0.75rem)]' 
+            : 'w-full lg:flex-basis-[calc(40%-0.75rem)]';
+            
+          const onboardingId = componentId === 'WeeklyGoals' ? 'onboarding-weekly-goals' : 
+                               componentId === 'TodaysPlan' ? 'onboarding-daily-plan' :
+                               undefined;
+
+          return (
+            <Reorder.Item
+              key={componentId}
+              value={componentId}
+              dragListener={isDashboardInReorderMode}
+              className={`${widthClass} ${isDashboardInReorderMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              id={onboardingId}
+            >
+              <DashboardCard title={item.title} componentId={componentId}>
+                <Component />
+              </DashboardCard>
+            </Reorder.Item>
+          );
+        })}
+      </Reorder.Group>
     </div>
-    <div className="lg:col-span-2 space-y-6">
-      <UnplannedTasks />
-      <ReflectionTrigger />
-    </div>
-  </div>
-);
+  );
+};
+
 
 const ReportsView = () => (
   <div className="space-y-6">
     <PerformanceHistory />
+    <TimeAllocationByTag />
     <WastedTime />
     <TimeLog />
     <AdvancedAnalytics />
@@ -98,6 +163,10 @@ function App() {
         return <ReportsView />;
       case 'insights':
         return <InsightsView />;
+      case 'inbox':
+        return <InboxView />;
+      case 'calendar':
+        return <CalendarView />;
       default:
         return <DashboardView />;
     }
@@ -106,7 +175,7 @@ function App() {
   return (
     <div className={`bg-slate-50 dark:bg-slate-900 min-h-screen text-slate-800 dark:text-slate-200 font-sans transition-colors duration-300 flex`}>
       <Sidebar />
-      <div className={`flex flex-col flex-1 transition-all duration-300 ease-in-out lg:ml-20 ${!isSidebarCollapsed ? 'lg:ml-64' : 'lg:ml-20'}`}>
+      <div className={`flex flex-col flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Header />
         <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-y-auto">
           {renderActiveView()}
@@ -133,6 +202,8 @@ function App() {
       <IdleTimeTracker />
       <IdleCountdown />
       <IdleReviewModal />
+      <ProcessInboxItemModal />
+      <OnboardingGuide />
     </div>
   );
 }

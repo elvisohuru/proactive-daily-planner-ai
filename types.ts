@@ -39,6 +39,7 @@ export type Task = {
   weeklyGoalId?: string | null;
   originWeeklyGoalId?: string;
   originWeeklySubGoalId?: string;
+  taskType?: 'task' | 'review';
 };
 
 export type UnplannedTask = {
@@ -78,6 +79,7 @@ export type Goal = {
   deadline: string | null;
   archived: boolean;
   subGoals: SubGoal[];
+  reviewFrequency?: 'weekly' | 'monthly' | 'quarterly' | null;
 };
 
 export type SubTask = {
@@ -95,6 +97,7 @@ export type Project = {
   subTasks: SubTask[];
   deadline: string | null;
   archived: boolean;
+  reviewFrequency?: 'weekly' | 'monthly' | 'quarterly' | null;
 };
 
 export type ActiveTask = {
@@ -161,7 +164,15 @@ export type IdleState = {
   seconds: number;
 } | null;
 
-export type AppView = 'dashboard' | 'goals' | 'reports' | 'insights';
+export type InboxItem = {
+  id: string;
+  text: string;
+  createdAt: number;
+};
+
+export type AppView = 'dashboard' | 'goals' | 'reports' | 'insights' | 'inbox' | 'calendar';
+
+export type DashboardLayout = string[];
 
 // The main state structure
 export interface AppState {
@@ -192,6 +203,17 @@ export interface AppState {
   activeView: AppView;
   isSidebarCollapsed: boolean;
 
+  // New state for Inbox
+  inbox: InboxItem[];
+  processingInboxItem: InboxItem | null;
+  
+  // Dashboard layout
+  dashboardItems: DashboardLayout;
+  isDashboardInReorderMode: boolean;
+  
+  // Onboarding
+  hasCompletedOnboarding: boolean;
+
   // Actions
   initialize: () => void;
   startDay: () => void;
@@ -207,20 +229,22 @@ export interface AppState {
   completeActiveTask: () => void;
   extendTimer: (minutes: number) => void;
   addLog: (log: Omit<LogEntry, 'id'|'timestamp'|'dateString'>) => void;
-  addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
+  addGoal: (text: string, category: GoalCategory, deadline: string | null, reviewFrequency: Goal['reviewFrequency']) => void;
   toggleGoal: (id: string) => void;
   archiveGoal: (id: string) => void;
   restoreGoal: (id: string) => void;
   permanentlyDeleteGoal: (id: string) => void;
+  updateGoal: (id: string, updates: Partial<Pick<Goal, 'text' | 'deadline' | 'reviewFrequency'>>) => void;
   addSubGoal: (goalId: string, text: string) => void;
   toggleSubGoal: (goalId: string, subGoalId: string) => void;
   deleteSubGoal: (goalId: string, subGoalId: string) => void;
   updateSubGoal: (goalId: string, subGoalId: string, updates: Partial<Pick<SubGoal, 'dependsOn'>>) => void;
   sendSubGoalToPlan: (goalId: string, subGoalId: string) => void;
-  addProject: (text: string, deadline: string | null) => void;
+  addProject: (text: string, deadline: string | null, reviewFrequency: Project['reviewFrequency']) => void;
   archiveProject: (id: string) => void;
   restoreProject: (id: string) => void;
   permanentlyDeleteProject: (id: string) => void;
+  updateProject: (id: string, updates: Partial<Pick<Project, 'text' | 'deadline' | 'reviewFrequency'>>) => void;
   addSubTask: (projectId: string, text: string) => void;
   toggleSubTask: (projectId: string, subTaskId: string) => void;
   deleteSubTask: (projectId: string, subTaskId: string) => void;
@@ -245,7 +269,7 @@ export interface AppState {
   checkAchievements: () => void;
   exportDataAsJson: () => void;
   exportDataAsMarkdown: () => void;
-  exportDataAsCsv: (dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects' | 'weekly') => void;
+  exportDataAsCsv: (dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects' | 'weekly' | 'inbox') => void;
   importData: (jsonString: string) => void;
 
   // New Actions for hourly review
@@ -267,4 +291,27 @@ export interface AppState {
   // Actions for navigation
   setActiveView: (view: AppView) => void;
   toggleSidebar: () => void;
+
+  // Actions for Inbox
+  addInboxItem: (text: string) => void;
+  deleteInboxItem: (id: string) => void;
+  setProcessingInboxItem: (item: InboxItem | null) => void;
+  processInboxItem: (
+    itemId: string,
+    action: 'to_task' | 'to_subgoal' | 'to_subtask' | 'to_goal' | 'to_project',
+    details: {
+      parentId?: string;
+      parentType?: 'weekly_goal' | 'goal' | 'project';
+      goalCategory?: GoalCategory;
+      deadline?: string | null;
+      reviewFrequency?: Goal['reviewFrequency'];
+    }
+  ) => void;
+  
+  // Action for dashboard layout
+  setDashboardItems: (newItems: DashboardLayout) => void;
+  setDashboardReorderMode: (isInReorderMode: boolean) => void;
+  
+  // Action for onboarding
+  completeOnboarding: () => void;
 }

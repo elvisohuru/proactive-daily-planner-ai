@@ -23,13 +23,13 @@ const Header: React.FC = () => {
         >
           <AnimatePresence initial={false} mode="wait">
             <motion.div
-              key={isSidebarCollapsed ? 'menu' : 'x'}
+              key={!isSidebarCollapsed ? 'x' : 'menu'}
               initial={{ rotate: -90, opacity: 0 }}
               animate={{ rotate: 0, opacity: 1 }}
               exit={{ rotate: 90, opacity: 0 }}
               transition={{ duration: 0.2 }}
             >
-              {isSidebarCollapsed ? <Menu size={22} /> : <X size={22} />}
+              {!isSidebarCollapsed ? <X size={22} /> : <Menu size={22} />}
             </motion.div>
           </AnimatePresence>
         </button>

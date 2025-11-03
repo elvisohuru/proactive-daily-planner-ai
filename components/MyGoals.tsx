@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Check, Target, Archive, RefreshCw, FolderKanban, Link2, Info, ArrowUpCircle, CircleCheck, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Trash2, Check, Target, Archive, RefreshCw, FolderKanban, Link2, Info, ArrowUpCircle, CircleCheck, ChevronDown, ChevronUp, Repeat } from 'lucide-react';
 import { getDeadlineCountdown } from '../utils/dateUtils';
 import { Goal, GoalCategory, Project, SubTask, SubGoal } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -256,6 +255,14 @@ const ProjectItem: React.FC<{
   const [newSubTaskText, setNewSubTaskText] = useState('');
   const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(project.subTasks.length === 0);
+  const [isAddSubTaskOpen, setIsAddSubTaskOpen] = useState(false);
+  const newSubTaskInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAddSubTaskOpen) {
+      newSubTaskInputRef.current?.focus();
+    }
+  }, [isAddSubTaskOpen]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -269,6 +276,7 @@ const ProjectItem: React.FC<{
     if (newSubTaskText.trim()) {
       addSubTask(project.id, newSubTaskText.trim());
       setNewSubTaskText('');
+      setIsAddSubTaskOpen(false);
     }
   };
 
@@ -299,7 +307,14 @@ const ProjectItem: React.FC<{
               </div>
             )}
             
-            {project.deadline && !project.completed && !project.archived && <p className="text-xs text-slate-500 dark:text-slate-400">{countdown}</p>}
+            <div className="flex items-center gap-2 flex-wrap">
+              {project.deadline && !project.completed && !project.archived && <p className="text-xs text-slate-500 dark:text-slate-400">{countdown}</p>}
+              {project.reviewFrequency && !project.completed && !project.archived && (
+                <span className="text-xs flex items-center gap-1 text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
+                  <Repeat size={12} /> {project.reviewFrequency.charAt(0).toUpperCase() + project.reviewFrequency.slice(1)}
+                </span>
+              )}
+            </div>
         </div>
         {project.archived ? (
             <>
@@ -341,16 +356,36 @@ const ProjectItem: React.FC<{
                                 {project.subTasks.map(st => <SubTaskItem key={st.id} subTask={st} projectId={project.id} allSubTasks={project.subTasks} editingDepsFor={editingDepsFor} setEditingDepsFor={setEditingDepsFor} />)}
                               </AnimatePresence>
                           </ul>
-                          <form onSubmit={handleAddSubTask} className="flex gap-2 mt-2">
-                              <input 
-                                  type="text"
-                                  value={newSubTaskText}
-                                  onChange={e => setNewSubTaskText(e.target.value)}
-                                  placeholder="Add a sub-task..."
-                                  className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
-                              />
-                              <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-task"><Plus size={18}/></button>
-                          </form>
+                          {!isAddSubTaskOpen && (
+                            <button 
+                                onClick={() => setIsAddSubTaskOpen(true)}
+                                className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mt-2 pl-4"
+                            >
+                                <Plus size={14} /> Add sub-task
+                            </button>
+                          )}
+                          <AnimatePresence>
+                            {isAddSubTaskOpen && (
+                              <motion.form 
+                                  onSubmit={handleAddSubTask}
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="flex gap-2 mt-2"
+                              >
+                                  <input 
+                                      ref={newSubTaskInputRef}
+                                      type="text"
+                                      value={newSubTaskText}
+                                      onChange={e => setNewSubTaskText(e.target.value)}
+                                      onBlur={() => { if(!newSubTaskText.trim()) setIsAddSubTaskOpen(false); }}
+                                      placeholder="Add a sub-task..."
+                                      className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                                  />
+                                  <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-task"><Plus size={18}/></button>
+                              </motion.form>
+                            )}
+                          </AnimatePresence>
                       </div>
                   </motion.div>
               )}
@@ -372,6 +407,14 @@ const GoalItem: React.FC<{
   const [newSubGoalText, setNewSubGoalText] = useState('');
   const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(goal.subGoals.length === 0);
+  const [isAddSubGoalOpen, setIsAddSubGoalOpen] = useState(false);
+  const newSubGoalInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isAddSubGoalOpen) {
+      newSubGoalInputRef.current?.focus();
+    }
+  }, [isAddSubGoalOpen]);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -385,6 +428,7 @@ const GoalItem: React.FC<{
     if (newSubGoalText.trim()) {
       addSubGoal(goal.id, newSubGoalText.trim());
       setNewSubGoalText('');
+      setIsAddSubGoalOpen(false);
     }
   };
 
@@ -415,7 +459,14 @@ const GoalItem: React.FC<{
               </div>
             )}
             
-            {goal.deadline && !goal.completed && !goal.archived && <p className="text-xs text-slate-500 dark:text-slate-400">{countdown}</p>}
+            <div className="flex items-center gap-2 flex-wrap">
+              {goal.deadline && !goal.completed && !goal.archived && <p className="text-xs text-slate-500 dark:text-slate-400">{countdown}</p>}
+              {goal.reviewFrequency && !goal.completed && !goal.archived && (
+                <span className="text-xs flex items-center gap-1 text-slate-500 dark:text-slate-400 bg-slate-200 dark:bg-slate-600 px-2 py-0.5 rounded-full">
+                  <Repeat size={12} /> {goal.reviewFrequency.charAt(0).toUpperCase() + goal.reviewFrequency.slice(1)}
+                </span>
+              )}
+            </div>
         </div>
         {goal.archived ? (
             <>
@@ -457,16 +508,36 @@ const GoalItem: React.FC<{
                                 {goal.subGoals.map(sg => <SubGoalItem key={sg.id} subGoal={sg} goalId={goal.id} allSubGoals={goal.subGoals} editingDepsFor={editingDepsFor} setEditingDepsFor={setEditingDepsFor} />)}
                               </AnimatePresence>
                           </ul>
-                          <form onSubmit={handleAddSubGoal} className="flex gap-2 mt-2">
-                              <input 
-                                  type="text"
-                                  value={newSubGoalText}
-                                  onChange={e => setNewSubGoalText(e.target.value)}
-                                  placeholder="Add a sub-goal..."
-                                  className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
-                              />
-                              <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-goal"><Plus size={18}/></button>
-                          </form>
+                          {!isAddSubGoalOpen && (
+                            <button 
+                                onClick={() => setIsAddSubGoalOpen(true)}
+                                className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 mt-2 pl-4"
+                            >
+                                <Plus size={14} /> Add sub-goal
+                            </button>
+                          )}
+                          <AnimatePresence>
+                            {isAddSubGoalOpen && (
+                              <motion.form 
+                                  onSubmit={handleAddSubGoal}
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  className="flex gap-2 mt-2"
+                              >
+                                  <input 
+                                      ref={newSubGoalInputRef}
+                                      type="text"
+                                      value={newSubGoalText}
+                                      onChange={e => setNewSubGoalText(e.target.value)}
+                                      onBlur={() => { if(!newSubGoalText.trim()) setIsAddSubGoalOpen(false); }}
+                                      placeholder="Add a sub-goal..."
+                                      className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                                  />
+                                  <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-goal"><Plus size={18}/></button>
+                              </motion.form>
+                            )}
+                          </AnimatePresence>
                       </div>
                   </motion.div>
               )}
@@ -482,6 +553,7 @@ const MyGoals: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ActiveGoalTab>('short');
   const [newItemText, setNewItemText] = useState('');
   const [deadline, setDeadline] = useState('');
+  const [reviewFrequency, setReviewFrequency] = useState<Goal['reviewFrequency']>(null);
   const [showArchived, setShowArchived] = useState(false);
   
   const newItemInputRef = useRef<HTMLInputElement>(null);
@@ -496,6 +568,7 @@ const MyGoals: React.FC = () => {
     // When switching tabs, clear the input form
     setNewItemText('');
     setDeadline('');
+    setReviewFrequency(null);
   }, [activeTab]);
 
 
@@ -503,13 +576,14 @@ const MyGoals: React.FC = () => {
     e.preventDefault();
     if (newItemText.trim()) {
         if (activeTab === 'projects') {
-            addProject(newItemText.trim(), deadline || null);
+            addProject(newItemText.trim(), deadline || null, reviewFrequency);
         } else {
             const newCategory: GoalCategory = activeTab === 'short' ? 'Short Term' : 'Long Term';
-            addGoal(newItemText.trim(), newCategory, deadline || null);
+            addGoal(newItemText.trim(), newCategory, deadline || null, reviewFrequency);
         }
       setNewItemText('');
       setDeadline('');
+      setReviewFrequency(null);
     }
   };
 
@@ -558,16 +632,29 @@ const MyGoals: React.FC = () => {
           placeholder={activeTab === 'projects' ? 'Add a new project...' : `Add a new ${activeTab === 'short' ? 'short' : 'long'} term goal...`}
           className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200"
         />
-        <div className="flex gap-2 flex-wrap">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <input
             type="date"
             value={deadline}
             onChange={(e) => setDeadline(e.target.value)}
-            className="flex-grow bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm"
+            className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm"
             aria-label="Deadline"
           />
-          <button type="submit" className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg" aria-label={activeTab === 'projects' ? 'Add Project' : 'Add Goal'}><Plus size={20} /></button>
+          <select
+            value={reviewFrequency || ''}
+            onChange={(e) => setReviewFrequency(e.target.value as Goal['reviewFrequency'] || null)}
+            className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
+            title={"Set review frequency"}
+          >
+            <option value="">No scheduled review</option>
+            <option value="weekly">Weekly Review</option>
+            <option value="monthly">Monthly Review</option>
+            <option value="quarterly">Quarterly Review</option>
+          </select>
         </div>
+        <button type="submit" className="w-full bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center gap-2" aria-label={activeTab === 'projects' ? 'Add Project' : 'Add Goal'}>
+          <Plus size={20} /> Add {activeTab === 'projects' ? 'Project' : 'Goal'}
+        </button>
       </form>
 
       <div className="space-y-4">

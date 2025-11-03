@@ -10,7 +10,7 @@ const IdleCountdown: React.FC = () => {
   const isVisible = idleState?.status === 'tracking_idle';
   const seconds = idleState?.seconds ?? 0;
   
-  const text = 'inactive duration';
+  const text = 'On a break:';
 
   return (
     <AnimatePresence>
@@ -22,7 +22,7 @@ const IdleCountdown: React.FC = () => {
           className="fixed top-5 right-5 z-40 bg-gradient-to-br from-teal-900/90 via-emerald-900/80 to-slate-900/90 text-white backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-sm shadow-lg"
         >
           <Timer size={16} />
-          <span>{text}: {formatTime(seconds)}</span>
+          <span>{text} {formatTime(seconds)}</span>
         </motion.div>
       )}
     </AnimatePresence>

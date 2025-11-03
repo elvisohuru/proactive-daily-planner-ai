@@ -1,11 +1,13 @@
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { LayoutDashboard, Target, BarChart3, Lightbulb } from 'lucide-react';
+import { LayoutDashboard, Target, BarChart3, Lightbulb, Inbox, Calendar } from 'lucide-react';
 import { AppView } from '../types';
 
-const navItems: { view: AppView; label: string; icon: React.ReactNode }[] = [
+const navItems: { view: AppView; label: string; icon: React.ReactNode; id?: string; }[] = [
   { view: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={22} /> },
   { view: 'goals', label: 'Goals & Projects', icon: <Target size={22} /> },
+  { view: 'inbox', label: 'Idea Inbox', icon: <Inbox size={22} />, id: 'onboarding-inbox' },
+  { view: 'calendar', label: 'Calendar', icon: <Calendar size={22} /> },
   { view: 'reports', label: 'Reports', icon: <BarChart3 size={22} /> },
   { view: 'insights', label: 'Insights', icon: <Lightbulb size={22} /> },
 ];
@@ -31,6 +33,7 @@ const Sidebar: React.FC = () => {
           {navItems.map((item) => (
             <li key={item.view}>
               <button
+                id={item.id}
                 onClick={() => handleNavClick(item.view)}
                 title={isSidebarCollapsed ? item.label : ''}
                 className={`w-full flex items-center gap-4 p-3 rounded-lg transition-colors text-slate-600 dark:text-slate-300 ${

@@ -114,7 +114,7 @@ const TaskTimer: React.FC = () => {
 
   const renderTimerContent = () => (
     <>
-      <p className="text-xl md:text-3xl font-light text-slate-300 mb-4 text-center px-4">{activeTask?.task}</p>
+      <p className="text-xl sm:text-2xl md:text-3xl font-light text-slate-300 mb-4 text-center px-4">{activeTask?.task}</p>
       <div className="my-6 sm:my-10">
         <AnimatePresence mode="wait">
           {isTimeUp ? (
@@ -125,7 +125,7 @@ const TaskTimer: React.FC = () => {
               className="flex flex-col items-center gap-2"
             >
               <motion.span
-                  className="text-6xl sm:text-8xl md:text-9xl font-mono font-bold text-white tracking-wider"
+                  className="text-7xl md:text-9xl font-mono font-bold text-white tracking-wider"
                   animate={{ scale: [1, 1.02, 1] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
               >
@@ -136,7 +136,7 @@ const TaskTimer: React.FC = () => {
           ) : (
             <motion.span 
               key="timer"
-              className="text-6xl sm:text-8xl md:text-9xl font-mono font-bold text-white tracking-wider"
+              className="text-7xl md:text-9xl font-mono font-bold text-white tracking-wider"
             >
               {formatTime(activeTask.remainingSeconds)}
             </motion.span>

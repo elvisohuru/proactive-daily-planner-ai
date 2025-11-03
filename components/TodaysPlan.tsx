@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Play, Check, X, GripVertical, Flag, Tag, Link2, Info, Sparkles } from 'lucide-react';
+import { Plus, Trash2, Play, Check, X, GripVertical, Flag, Tag, Link2, Info, Sparkles, ClipboardCheck, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { Task, TaskPriority } from '../types';
 import { PREDEFINED_TAGS } from '../constants';
@@ -211,24 +211,23 @@ const TodaysPlan: React.FC = () => {
                       ))}
                     </optgroup>
                 </select>
-                <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center">
-                    <Flag size={14} className="text-slate-500" />
+                <div className="flex gap-2 bg-black rounded-lg px-3 py-2 text-sm items-center">
+                    <Flag size={14} className="text-slate-400" />
                      <select
                         value={newPriority}
                         onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
-                        className="w-full bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0"
+                        className="w-full bg-transparent text-white dark:text-slate-300 border-none focus:ring-0"
                     >
-                        <option value="none">No Priority</option>
-                        <option value="low">Low</option>
-                        <option value="medium">Medium</option>
-                        <option value="high">High</option>
+                        <option value="none" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">No Priority</option>
+                        <option value="low" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">Low</option>
+                        <option value="medium" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">Medium</option>
+                        <option value="high" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">High</option>
                     </select>
                 </div>
             </div>
             <div className="relative" ref={tagContainerRef}>
               <div 
-                onClick={() => setIsTagDropdownOpen(true)}
-                className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center flex-wrap cursor-text"
+                className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center flex-wrap"
               >
                   <Tag size={14} className="text-slate-500" />
                   {newTags.map(tag => (
@@ -246,6 +245,14 @@ const TodaysPlan: React.FC = () => {
                       placeholder="Add tags..."
                       className="flex-grow bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0 p-0 h-auto"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+                    className="ml-auto text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                    aria-label="Toggle tag suggestions"
+                  >
+                    <ChevronDown size={16} />
+                  </button>
               </div>
               <AnimatePresence>
                 {isTagDropdownOpen && (
@@ -285,6 +292,7 @@ const TodaysPlan: React.FC = () => {
           {tasks.map((task) => {
             const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;
             const isBlocked = task.dependsOn?.some(depId => !tasks.find(t => t.id === depId)?.completed) ?? false;
+            const isReviewTask = task.taskType === 'review';
             const originText = getOriginText(task);
 
             return (
@@ -295,111 +303,155 @@ const TodaysPlan: React.FC = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                className={`relative flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border-l-4 ${priorityMap[task.priority].color} ${isBlocked || task.completed ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
+                className={`relative flex items-center gap-3 p-3 bg-black rounded-lg border-l-4 ${priorityMap[task.priority].color} ${isBlocked || task.completed ? 'opacity-60' : (task.taskType !== 'review' ? 'cursor-grab active:cursor-grabbing' : '')}`}
               >
-                {(!isBlocked && !task.completed) && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
-                {(isBlocked || task.completed) && <div className="w-[18px] flex-shrink-0" />}
-
+                {(!isBlocked && !task.completed && !isReviewTask) && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
+                {(isBlocked || task.completed || isReviewTask) && <div className="w-[18px] flex-shrink-0" />}
+                
                 <button
                   onClick={() => !isBlocked && toggleTask(task.id)}
-                  disabled={isBlocked}
+                  disabled={isBlocked || isReviewTask}
                   className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors flex-shrink-0 ${
                     task.completed
                       ? 'bg-calm-green-500 border-calm-green-500'
                       : 'border-slate-300 dark:border-slate-500'
-                  } ${!isBlocked && !task.completed ? 'hover:border-calm-blue-400' : ''} ${isBlocked ? 'cursor-not-allowed bg-slate-200 dark:bg-slate-600' : ''}`}
+                  } ${!isBlocked && !task.completed ? 'hover:border-calm-blue-400' : ''} ${isBlocked || isReviewTask ? 'cursor-not-allowed bg-slate-200 dark:bg-slate-600' : ''}`}
                   aria-label={task.completed ? 'Mark task as incomplete' : 'Mark task as complete'}
                 >
                   <AnimatePresence>
                     {task.completed && (
-                      <motion.div initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }}>
+                      <motion.div
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.5, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                      >
                         <Check size={16} className="text-white" />
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </button>
-                <div className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
-                  <p className="flex items-center gap-1.5">{task.text} {task.isBonus && <Sparkles size={14} className="text-yellow-400" title="Bonus Task" />}</p>
+                <div className={`flex-grow text-slate-100 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                  <p>{task.text}</p>
                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {isBlocked && (
-                        <div className="group relative flex items-center">
-                            <span className="text-xs flex items-center gap-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-0.5 rounded-full">
-                                <Info size={12}/> Blocked
-                            </span>
-                             <div className="absolute bottom-full mb-2 w-max max-w-xs bg-slate-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                {getBlockedByText(task)}
-                            </div>
-                        </div>
-                      )}
-                       {originText && (
-                         <span className="text-xs italic text-slate-400 dark:text-slate-500">
-                          {originText}
+                     {isBlocked && (
+                       <div className="group relative flex items-center">
+                           <span className="text-xs flex items-center gap-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 px-2 py-0.5 rounded-full">
+                               <Info size={12}/> Blocked
+                           </span>
+                             <div className="absolute bottom-full mb-2 w-max max-w-xs bg-slate-800 text-white text-xs rounded py-1 px-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                               {getBlockedByText(task)}
+                           </div>
+                       </div>
+                     )}
+                     {originText && <p className="text-xs text-slate-400 dark:text-slate-400">{originText}</p>}
+                     {linkedGoal && (
+                       <span className="text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
+                         🎯 {linkedGoal.text}
+                       </span>
+                     )}
+                     {task.tags.map(tag => (
+                       <span key={tag} className="text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">
+                         # {tag}
+                       </span>
+                     ))}
+                     {task.isBonus && (
+                        <span className="text-xs flex items-center gap-1 bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200 px-2 py-0.5 rounded-full">
+                          <Sparkles size={12}/> Bonus
                         </span>
-                       )}
-                      {linkedGoal && (
-                        <span className="text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
-                          🎯 {linkedGoal.text}
+                     )}
+                     {isReviewTask && (
+                        <span className="text-xs flex items-center gap-1 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 px-2 py-0.5 rounded-full">
+                          <ClipboardCheck size={12}/> Review
                         </span>
-                      )}
-                      {task.tags.map(tag => (
-                          <span key={tag} className="text-xs bg-slate-200 text-slate-600 dark:bg-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-full">
-                              # {tag}
-                          </span>
-                      ))}
-                  </div>
+                     )}
+                   </div>
                 </div>
-
+                
                 {timerSetupTaskId === task.id ? (
-                  <form onSubmit={(e) => { e.preventDefault(); handleConfirmStartTimer(task); }} className="flex items-center gap-1">
-                      <input type="number" min="1" value={timerDuration} onChange={(e) => setTimerDuration(e.target.value)} className="w-16 bg-slate-200 dark:bg-slate-600 rounded-md px-2 py-1 text-sm text-center" autoFocus onKeyDown={(e) => { if (e.key === 'Escape') setTimerSetupTaskId(null); }} />
-                      <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
-                      <button type="submit" className="text-calm-green-500 hover:text-calm-green-600 p-1"><Check size={18} /></button>
-                      <button type="button" onClick={() => setTimerSetupTaskId(null)} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
-                  </form>
+                    <form 
+                        onSubmit={(e) => {
+                            e.preventDefault();
+                            handleConfirmStartTimer(task);
+                        }}
+                        className="flex items-center gap-1"
+                    >
+                        <input
+                            type="number"
+                            min="1"
+                            value={timerDuration}
+                            onChange={(e) => setTimerDuration(e.target.value)}
+                            className="w-16 bg-slate-200 dark:bg-slate-600 rounded-md px-2 py-1 text-sm text-center focus:ring-2 focus:ring-calm-blue-500 focus:outline-none"
+                            autoFocus
+                            onKeyDown={(e) => {
+                                if (e.key === 'Escape') {
+                                    setTimerSetupTaskId(null);
+                                }
+                            }}
+                        />
+                        <span className="text-xs text-slate-400 dark:text-slate-400">min</span>
+                        <button type="submit" className="text-calm-green-500 hover:text-calm-green-600 p-1"><Check size={18} /></button>
+                        <button type="button" onClick={() => setTimerSetupTaskId(null)} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
+                    </form>
                 ) : (
-                  <button onClick={() => handleStartTimerSetup(task.id)} disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
-                    <Play size={18} />
-                  </button>
-                )}
-                
-                <div className="relative">
-                    <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
-                        <Link2 size={18} />
+                  <>
+                    {!isReviewTask &&
+                      <button
+                        onClick={() => handleStartTimerSetup(task.id)}
+                        disabled={isBlocked || task.completed}
+                        className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-1"
+                        aria-label="Start Timer for this task"
+                      >
+                        <Play size={18} />
+                      </button>
+                    }
+                    <div className="relative">
+                      <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked || task.completed || isReviewTask} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                          <Link2 size={18} />
+                      </button>
+                       <AnimatePresence>
+                          {editingDepsFor === task.id && (
+                              <motion.div
+                                  initial={{ opacity: 0, y: -5 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -5 }}
+                                  className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
+                              >
+                                  <p className="text-sm font-semibold mb-2">Depends on:</p>
+                                  <ul className="max-h-48 overflow-y-auto space-y-2">
+                                      {tasks.filter(t => t.id !== task.id).map(depTask => (
+                                          <li key={depTask.id}>
+                                              <label className="flex items-center gap-2 text-sm">
+                                                  <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
+                                                  <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
+                                              </label>
+                                          </li>
+                                      ))}
+                                  </ul>
+                                  <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
+                              </motion.div>
+                          )}
+                        </AnimatePresence>
+                    </div>
+
+                    <button
+                      onClick={() => deleteTask(task.id)}
+                      disabled={task.completed}
+                      className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                      aria-label="Delete Task"
+                    >
+                      <Trash2 size={18} />
                     </button>
-                    <AnimatePresence>
-                    {editingDepsFor === task.id && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -5 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -5 }}
-                            className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
-                        >
-                            <p className="text-sm font-semibold mb-2">Depends on:</p>
-                            <ul className="max-h-48 overflow-y-auto space-y-2">
-                                {tasks.filter(t => t.id !== task.id).map(depTask => (
-                                    <li key={depTask.id}>
-                                        <label className="flex items-center gap-2 text-sm">
-                                            <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
-                                            <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
-                                        </label>
-                                    </li>
-                                ))}
-                            </ul>
-                             <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
-                        </motion.div>
-                    )}
-                    </AnimatePresence>
-                </div>
-                
-                <button onClick={() => deleteTask(task.id)} disabled={task.completed} className="text-slate-400 hover:text-red-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 size={18} /></button>
+                  </>
+                )}
               </Reorder.Item>
-            )
+            );
           })}
         </AnimatePresence>
       </Reorder.Group>
-        {tasks.length === 0 && (
-          <p className="text-center text-slate-500 dark:text-slate-400 py-4">No tasks yet. Add one to get started!</p>
-        )}
+      {tasks.length === 0 && (
+        <p className="text-center text-slate-500 dark:text-slate-400 py-4">No tasks planned for today. Add a task to begin.</p>
+      )}
     </div>
   );
 };

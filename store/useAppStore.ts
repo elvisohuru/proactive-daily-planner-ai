@@ -1,4 +1,3 @@
-
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,9 +27,11 @@ import {
   WeeklyGoal,
   WeeklySubGoal,
   AppView,
+  InboxItem,
+  DashboardLayout,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
-import { differenceInCalendarDays, parseISO, startOfWeek, format } from 'date-fns';
+import { differenceInCalendarDays, parseISO, startOfWeek, format, isSunday, isFirstDayOfMonth, getMonth, getDate } from 'date-fns';
 import { achievementsList } from '../utils/achievements';
 import { exportStateToMarkdown, convertToCsv } from '../utils/exportUtils';
 
@@ -39,6 +40,17 @@ const getTodaysScheduledRoutineTasks = (routine: RoutineTask[], date: Date): Rou
     const todayIndex = date.getDay();
     return routine.filter(r => r.recurringDays.length === 0 || r.recurringDays.includes(todayIndex));
 };
+
+export const defaultDashboardLayout: DashboardLayout = [
+  'ProductivityScore',
+  'ProductivityStreak',
+  'WeeklyGoals',
+  'UnplannedTasks',
+  'StartDay',
+  'ReflectionTrigger',
+  'DailyRoutine',
+  'TodaysPlan'
+];
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -72,11 +84,43 @@ export const useAppStore = create<AppState>()(
       activeView: 'dashboard',
       isSidebarCollapsed: false,
 
+      // Inbox State
+      inbox: [],
+      processingInboxItem: null,
+      
+      // Dashboard Layout
+      dashboardItems: defaultDashboardLayout,
+      isDashboardInReorderMode: false,
+      
+      // Onboarding
+      hasCompletedOnboarding: false,
+
       // Actions
       initialize: () => {
         const today = new Date();
         const todayString = getTodayDateString();
-        const { plan, routine, performanceHistory, streak, checkAchievements, weeklyPlan } = get();
+        const { plan, routine, performanceHistory, streak, checkAchievements, weeklyPlan, goals, projects } = get();
+
+        // Migration for dashboard layout for existing users
+        const state = get();
+        if ((state as any).dashboardLayout) {
+          const oldLayout = (state as any).dashboardLayout;
+          if (oldLayout.left && oldLayout.right) {
+            const newItems = [...oldLayout.left, ...oldLayout.right];
+            const defaultItems = new Set(defaultDashboardLayout);
+            const currentItems = new Set(newItems);
+            // Add any missing new components
+            defaultItems.forEach(item => {
+              if (!currentItems.has(item)) {
+                newItems.push(item);
+              }
+            });
+            set({ dashboardItems: newItems, dashboardLayout: undefined } as any);
+          }
+        } else if (!state.dashboardItems) {
+            set({ dashboardItems: defaultDashboardLayout });
+        }
+
 
         // Weekly reset logic
         const startOfThisWeek = startOfWeek(today, { weekStartsOn: 0 }); // Sunday
@@ -139,8 +183,43 @@ export const useAppStore = create<AppState>()(
           // Check achievements before resetting daily state
           checkAchievements();
 
+          // Generate review tasks for today
+          const reviewTasks: Task[] = [];
+          const checkFrequency = (item: Goal | Project, date: Date) => {
+            if (item.completed || item.archived) return false;
+            switch (item.reviewFrequency) {
+              case 'weekly':
+                return isSunday(date);
+              case 'monthly':
+                return isFirstDayOfMonth(date);
+              case 'quarterly':
+                const month = getMonth(date); // 0-indexed
+                const dayOfMonth = getDate(date);
+                return dayOfMonth === 1 && (month === 0 || month === 3 || month === 6 || month === 9);
+              default:
+                return false;
+            }
+          };
+
+          goals.forEach(goal => {
+            if (checkFrequency(goal, today)) {
+              reviewTasks.push({
+                id: uuidv4(), text: `Review Goal: "${goal.text}"`, completed: false,
+                goalId: null, priority: 'medium', tags: ['review'], taskType: 'review',
+              });
+            }
+          });
+          projects.forEach(project => {
+            if (checkFrequency(project, today)) {
+              reviewTasks.push({
+                id: uuidv4(), text: `Review Project: "${project.text}"`, completed: false,
+                goalId: null, priority: 'medium', tags: ['review'], taskType: 'review',
+              });
+            }
+          });
+
           set({
-            plan: { date: todayString, tasks: [] },
+            plan: { date: todayString, tasks: reviewTasks },
             activeTask: null,
             routine: get().routine.map(task => ({ ...task, completed: false })),
             isDayStarted: false,
@@ -158,7 +237,7 @@ export const useAppStore = create<AppState>()(
       },
 
       addTask: (text, goalId, priority, tags, isBonus = false, weeklyGoalId = null) => {
-        const newTask: Task = { id: uuidv4(), text, completed: false, goalId, priority, tags, dependsOn: [], isBonus, weeklyGoalId };
+        const newTask: Task = { id: uuidv4(), text, completed: false, goalId, priority, tags, dependsOn: [], isBonus, weeklyGoalId, taskType: 'task' };
         set((state) => ({
           plan: { ...state.plan, tasks: [...state.plan.tasks, newTask] },
         }));
@@ -369,7 +448,7 @@ export const useAppStore = create<AppState>()(
         get().checkAchievements();
       },
 
-      addGoal: (text, category, deadline) => {
+      addGoal: (text, category, deadline, reviewFrequency) => {
         const newGoal: Goal = {
           id: uuidv4(),
           text,
@@ -378,6 +457,7 @@ export const useAppStore = create<AppState>()(
           completed: false,
           archived: false,
           subGoals: [],
+          reviewFrequency,
         };
         set((state) => ({ goals: [...state.goals, newGoal] }));
       },
@@ -406,6 +486,12 @@ export const useAppStore = create<AppState>()(
       permanentlyDeleteGoal: (id) => {
         set((state) => ({
           goals: state.goals.filter((goal) => goal.id !== id),
+        }));
+      },
+
+      updateGoal: (id, updates) => {
+        set(state => ({
+          goals: state.goals.map(g => g.id === id ? { ...g, ...updates } : g)
         }));
       },
 
@@ -499,8 +585,8 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      addProject: (text, deadline) => {
-        const newProject: Project = { id: uuidv4(), text, completed: false, deadline, archived: false, subTasks: [] };
+      addProject: (text, deadline, reviewFrequency) => {
+        const newProject: Project = { id: uuidv4(), text, completed: false, deadline, archived: false, subTasks: [], reviewFrequency };
         set(state => ({ projects: [...state.projects, newProject] }));
       },
 
@@ -518,6 +604,12 @@ export const useAppStore = create<AppState>()(
 
       permanentlyDeleteProject: (id) => {
         set(state => ({ projects: state.projects.filter(p => p.id !== id) }));
+      },
+
+      updateProject: (id, updates) => {
+        set(state => ({
+          projects: state.projects.map(p => p.id === id ? { ...p, ...updates } : p)
+        }));
       },
 
       addSubTask: (projectId, text) => {
@@ -784,6 +876,9 @@ export const useAppStore = create<AppState>()(
           dayStartTime: state.dayStartTime,
           idleTimeLogs: state.idleTimeLogs,
           weeklyPlan: state.weeklyPlan,
+          inbox: state.inbox,
+          dashboardItems: state.dashboardItems,
+          hasCompletedOnboarding: state.hasCompletedOnboarding,
         };
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -799,7 +894,6 @@ export const useAppStore = create<AppState>()(
         const markdown = exportStateToMarkdown(state);
         const blob = new Blob([markdown], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
-        // Fix: Define the anchor element 'a' used to trigger the file download.
         const a = document.createElement('a');
         a.href = url;
         a.download = `proactive-planner-export-${getTodayDateString()}.md`;
@@ -824,6 +918,20 @@ export const useAppStore = create<AppState>()(
           const data = JSON.parse(jsonString);
           // Basic validation
           if (data.plan && data.goals && data.logs) {
+            let dashboardItems = defaultDashboardLayout;
+            if(data.dashboardItems) {
+              dashboardItems = data.dashboardItems
+            } else if (data.dashboardLayout) {
+               dashboardItems = [...(data.dashboardLayout.left || []), ...(data.dashboardLayout.right || [])];
+            }
+             // Add any missing new components for older imports
+            const currentItems = new Set(dashboardItems);
+            defaultDashboardLayout.forEach(item => {
+              if (!currentItems.has(item)) {
+                dashboardItems.push(item);
+              }
+            });
+
             set({
               plan: data.plan,
               logs: data.logs,
@@ -838,6 +946,10 @@ export const useAppStore = create<AppState>()(
               dayStartTime: data.dayStartTime || null,
               idleTimeLogs: data.idleTimeLogs || [],
               weeklyPlan: data.weeklyPlan || { weekStartDate: '', goals: [] },
+              inbox: data.inbox || [],
+              dashboardItems: dashboardItems,
+              isDashboardInReorderMode: false, // Always reset this on import
+              hasCompletedOnboarding: data.hasCompletedOnboarding || false,
             });
           } else {
             throw new Error('Invalid data structure');
@@ -995,6 +1107,60 @@ export const useAppStore = create<AppState>()(
       // Navigation actions
       setActiveView: (view: AppView) => set({ activeView: view }),
       toggleSidebar: () => set(state => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
+
+      // Inbox Actions
+      addInboxItem: (text) => {
+        const newItem: InboxItem = { id: uuidv4(), text, createdAt: Date.now() };
+        set(state => ({ inbox: [newItem, ...state.inbox] }));
+      },
+      deleteInboxItem: (id) => {
+        set(state => ({ inbox: state.inbox.filter(item => item.id !== id) }));
+      },
+      setProcessingInboxItem: (item) => {
+        set({ processingInboxItem: item });
+      },
+      processInboxItem: (itemId, action, details) => {
+        const item = get().inbox.find(i => i.id === itemId);
+        if (!item) return;
+
+        switch (action) {
+            case 'to_task':
+                get().addTask(item.text, null, 'none', [], false, null);
+                break;
+            case 'to_subgoal':
+                if (details.parentId && (details.parentType === 'goal' || details.parentType === 'weekly_goal')) {
+                    if (details.parentType === 'goal') {
+                      get().addSubGoal(details.parentId, item.text);
+                    } else { // weekly_goal
+                      get().addWeeklySubGoal(details.parentId, item.text);
+                    }
+                }
+                break;
+            case 'to_subtask':
+                if (details.parentId && details.parentType === 'project') {
+                    get().addSubTask(details.parentId, item.text);
+                }
+                break;
+            case 'to_goal':
+                if (details.goalCategory) {
+                    get().addGoal(item.text, details.goalCategory, details.deadline || null, details.reviewFrequency || null);
+                }
+                break;
+            case 'to_project':
+                get().addProject(item.text, details.deadline || null, details.reviewFrequency || null);
+                break;
+        }
+
+        get().deleteInboxItem(itemId);
+        get().setProcessingInboxItem(null);
+    },
+    
+    // Dashboard layout action
+    setDashboardItems: (newItems) => set({ dashboardItems: newItems }),
+    setDashboardReorderMode: (isInReorderMode) => set({ isDashboardInReorderMode: isInReorderMode }),
+    
+    // Onboarding action
+    completeOnboarding: () => set({ hasCompletedOnboarding: true }),
 
     }),
     {
