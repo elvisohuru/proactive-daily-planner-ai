@@ -104,26 +104,28 @@ const ShutdownRoutine: React.FC = () => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl p-6 w-full max-w-md relative"
+            className="bg-white dark:bg-slate-800 rounded-2xl shadow-xl w-full max-w-md relative flex flex-col max-h-[90vh]"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={closeShutdownRoutine}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition z-10"
             >
               <X size={24} />
             </button>
-            <AnimatePresence mode="wait">
-                <motion.div
-                    key={shutdownState.step}
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3, ease: 'easeInOut' }}
-                >
-                    {renderContent()}
-                </motion.div>
-            </AnimatePresence>
+            <div className="p-6 overflow-y-auto">
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={shutdownState.step}
+                        initial={{ opacity: 0, x: 50 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -50 }}
+                        transition={{ duration: 0.3, ease: 'easeInOut' }}
+                    >
+                        {renderContent()}
+                    </motion.div>
+                </AnimatePresence>
+            </div>
           </motion.div>
         </motion.div>
       )}

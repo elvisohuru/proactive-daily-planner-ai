@@ -526,21 +526,25 @@ const MyGoals: React.FC = () => {
         <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2"><Target size={20}/> My Goals & Projects</h2>
       </div>
       
-      <div className="flex mb-4 border-b border-slate-200 dark:border-slate-700">
-        {(['short', 'long', 'projects'] as ActiveGoalTab[]).map(tab => (
-            <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`relative px-4 py-2 text-sm font-medium transition-colors ${
-                    activeTab === tab
-                    ? 'text-calm-blue-600 dark:text-calm-blue-400'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-                }`}
-            >
-                {tab === 'short' ? 'Short Term' : tab === 'long' ? 'Long Term' : 'Projects'}
-                {activeTab === tab && <motion.div layoutId="goalUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-calm-blue-500" />}
-            </button>
-        ))}
+      <div className="mb-4 border-b border-slate-200 dark:border-slate-700">
+        <div className="overflow-x-auto">
+          <div className="flex whitespace-nowrap">
+            {(['short', 'long', 'projects'] as ActiveGoalTab[]).map(tab => (
+                <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`relative px-2 sm:px-4 py-2 text-sm font-medium transition-colors ${
+                        activeTab === tab
+                        ? 'text-calm-blue-600 dark:text-calm-blue-400'
+                        : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                    }`}
+                >
+                    {tab === 'short' ? 'Short Term' : tab === 'long' ? 'Long Term' : 'Projects'}
+                    {activeTab === tab && <motion.div layoutId="goalUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-calm-blue-500" />}
+                </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       <form onSubmit={handleAddItem} className="space-y-3 mb-6">

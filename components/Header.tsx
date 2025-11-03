@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -11,8 +10,8 @@ const Header: React.FC = () => {
   const greeting = "Today's Plan";
 
   return (
-    <header className="flex items-center justify-between p-4 md:p-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
-      <h1 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">
+    <header className="flex items-center justify-between px-3 py-3 sm:px-6 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm sticky top-0 z-10">
+      <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-slate-800 dark:text-slate-200 tracking-tight">
         {greeting}
       </h1>
       <button

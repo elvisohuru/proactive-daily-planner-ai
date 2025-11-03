@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,7 +72,7 @@ const CommandPalette: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-24"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-start justify-center pt-12 sm:pt-24"
           onClick={() => setCommandPaletteOpen(false)}
         >
           <motion.div
@@ -81,11 +80,11 @@ const CommandPalette: React.FC = () => {
             animate={{ scale: 1, y: 0, opacity: 1 }}
             exit={{ scale: 0.95, y: -20, opacity: 0 }}
             transition={{ ease: 'easeOut', duration: 0.2 }}
-            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-xl mx-4 overflow-hidden"
+            className="bg-white dark:bg-slate-800 rounded-xl shadow-2xl w-full max-w-xl mx-4 flex flex-col max-h-[80vh]"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={handleKeyDown}
           >
-            <div className="flex items-center gap-4 p-4 border-b border-slate-200 dark:border-slate-700">
+            <div className="flex-shrink-0 flex items-center gap-4 p-4 border-b border-slate-200 dark:border-slate-700">
               <Search size={20} className="text-slate-400" />
               <input
                 ref={inputRef}
@@ -99,7 +98,7 @@ const CommandPalette: React.FC = () => {
                  <X size={20}/>
                </button>
             </div>
-            <div className="max-h-80 overflow-y-auto p-2">
+            <div className="overflow-y-auto p-2">
               {filteredCommands.length > 0 ? (
                 <ul>
                   {filteredCommands.map((cmd, index) => (

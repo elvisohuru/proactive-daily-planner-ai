@@ -15,4 +15,4 @@ export const STORAGE_KEYS = {
 };
 
 // Durations in seconds
-export const IDLE_DETECTION_SECONDS = 30;
+export const IDLE_DETECTION_SECONDS = 300; // 5 minutes

@@ -114,8 +114,8 @@ const TaskTimer: React.FC = () => {
 
   const renderTimerContent = () => (
     <>
-      <p className="text-2xl md:text-4xl font-light text-slate-300 mb-4 text-center px-4">{activeTask?.task}</p>
-      <div className="my-10">
+      <p className="text-xl md:text-3xl font-light text-slate-300 mb-4 text-center px-4">{activeTask?.task}</p>
+      <div className="my-6 sm:my-10">
         <AnimatePresence mode="wait">
           {isTimeUp ? (
             <motion.div
@@ -125,18 +125,18 @@ const TaskTimer: React.FC = () => {
               className="flex flex-col items-center gap-2"
             >
               <motion.span
-                  className="text-7xl md:text-9xl font-mono font-bold text-white tracking-wider"
+                  className="text-6xl sm:text-8xl md:text-9xl font-mono font-bold text-white tracking-wider"
                   animate={{ scale: [1, 1.02, 1] }}
                   transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
               >
                   {formatTime(activeTask.remainingSeconds)}
               </motion.span>
-              <p className="text-xl font-semibold text-yellow-400">Time's up!</p>
+              <p className="text-lg sm:text-xl font-semibold text-yellow-400">Time's up!</p>
             </motion.div>
           ) : (
             <motion.span 
               key="timer"
-              className="text-7xl md:text-9xl font-mono font-bold text-white tracking-wider"
+              className="text-6xl sm:text-8xl md:text-9xl font-mono font-bold text-white tracking-wider"
             >
               {formatTime(activeTask.remainingSeconds)}
             </motion.span>
@@ -151,7 +151,7 @@ const TaskTimer: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="flex flex-col items-center gap-6 mt-10"
+            className="flex flex-col items-center gap-6 mt-6 sm:mt-10"
           >
             <form onSubmit={handleExtend} className="flex items-center gap-2">
               <input
@@ -159,18 +159,18 @@ const TaskTimer: React.FC = () => {
                 min="1"
                 value={extensionMinutes}
                 onChange={(e) => setExtensionMinutes(e.target.value)}
-                className="w-24 bg-slate-700 text-white rounded-lg px-3 py-2 text-center text-lg focus:ring-2 focus:ring-calm-blue-500 focus:outline-none"
+                className="w-20 sm:w-24 bg-slate-700 text-white rounded-lg px-3 py-2 text-center text-base sm:text-lg focus:ring-2 focus:ring-calm-blue-500 focus:outline-none"
               />
               <button
                 type="submit"
-                className="flex items-center justify-center gap-2 text-lg px-6 h-12 bg-calm-blue-600 hover:bg-calm-blue-700 rounded-lg transition-colors font-semibold"
+                className="flex items-center justify-center gap-2 text-base sm:text-lg px-4 sm:px-6 h-10 sm:h-12 bg-calm-blue-600 hover:bg-calm-blue-700 rounded-lg transition-colors font-semibold"
               >
                 <Plus size={20} /> Extend
               </button>
             </form>
             <button
               onClick={handleCompleteAndLog}
-              className="flex items-center justify-center gap-3 text-lg w-64 h-16 bg-calm-green-600 hover:bg-calm-green-700 rounded-full transition-colors font-semibold"
+              className="flex items-center justify-center gap-3 text-lg w-56 h-14 sm:w-64 sm:h-16 bg-calm-green-600 hover:bg-calm-green-700 rounded-full transition-colors font-semibold"
               aria-label="Complete and Log Task"
             >
               <CheckSquare size={24} />
@@ -183,11 +183,11 @@ const TaskTimer: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="flex flex-col sm:flex-row items-center gap-6 mt-10"
+            className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 mt-6 sm:mt-10"
           >
             <button
               onClick={handlePauseResume}
-              className="flex items-center justify-center gap-3 text-lg w-48 h-16 bg-white/10 hover:bg-white/20 rounded-full transition-colors font-semibold"
+              className="flex items-center justify-center gap-3 text-lg w-40 h-14 sm:w-48 sm:h-16 bg-white/10 hover:bg-white/20 rounded-full transition-colors font-semibold"
               aria-label={activeTask.isPaused ? 'Resume Timer' : 'Pause Timer'}
             >
               {activeTask.isPaused ? <Play size={24} /> : <Pause size={24} />}
@@ -195,7 +195,7 @@ const TaskTimer: React.FC = () => {
             </button>
             <button
               onClick={handleCompleteAndLog}
-              className="flex items-center justify-center gap-3 text-lg w-48 h-16 bg-calm-green-600 hover:bg-calm-green-700 rounded-full transition-colors font-semibold"
+              className="flex items-center justify-center gap-3 text-lg w-40 h-14 sm:w-48 sm:h-16 bg-calm-green-600 hover:bg-calm-green-700 rounded-full transition-colors font-semibold"
               aria-label="Complete and Log Task"
             >
               <CheckSquare size={24} />
@@ -214,13 +214,13 @@ const TaskTimer: React.FC = () => {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-900/90 p-4 text-white backdrop-blur-md"
+          className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-br from-teal-900/90 via-emerald-900/80 to-slate-900/90 p-4 text-white backdrop-blur-md"
         >
           {!isFocusMode && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1, transition: { delay: 0.2 } }}
-              className="absolute top-4 right-4 flex items-center gap-2"
+              className="absolute top-4 right-4 flex items-center gap-1 sm:gap-2"
             >
               {sounds.map(s => (
                 <button

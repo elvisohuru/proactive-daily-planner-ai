@@ -114,7 +114,7 @@ const ProductivityScore: React.FC = () => {
       }}
       transition={{ duration: 1.5, ease: 'easeInOut' }}
     >
-      <div className="relative w-40 h-40 flex-shrink-0">
+      <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0">
         <AnimatePresence>
           {isComplete && (
             <>
@@ -135,11 +135,11 @@ const ProductivityScore: React.FC = () => {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-          <span className="text-4xl font-bold text-slate-800 dark:text-slate-100">{score}<span className="text-2xl text-slate-500">%</span></span>
+          <span className="text-3xl sm:text-4xl font-bold text-slate-800 dark:text-slate-100">{score}<span className="text-xl sm:text-2xl text-slate-500">%</span></span>
         </div>
       </div>
       <div className="text-center">
-        <p className="text-lg font-semibold text-slate-700 dark:text-slate-300">
+        <p className="text-base sm:text-lg font-semibold text-slate-700 dark:text-slate-300">
           {getMotivationalMessage()}
         </p>
         <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">

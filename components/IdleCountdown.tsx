@@ -21,7 +21,7 @@ const IdleCountdown: React.FC = () => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="fixed top-5 right-5 z-40 bg-slate-900/50 dark:bg-black/50 text-white backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-sm shadow-lg"
+          className="fixed top-5 right-5 z-40 bg-gradient-to-br from-teal-900/90 via-emerald-900/80 to-slate-900/90 text-white backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2 text-sm shadow-lg"
         >
           <Timer size={16} />
           <span>{text}: {formatTime(seconds)}</span>

@@ -38,7 +38,7 @@ const ProductivityStreak: React.FC = () => {
                     animate={{ y: 0, opacity: 1 }}
                     exit={{y: 20, opacity: 0}}
                     transition={{ type: 'spring', stiffness: 300, damping: 15 }}
-                    className="font-bold text-7xl text-slate-800 dark:text-slate-100"
+                    className="font-bold text-6xl sm:text-7xl text-slate-800 dark:text-slate-100"
                 >
                     {streak.current}
                 </motion.div>
