@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Trash2, Play, Check, X, GripVertical, Flag, Tag, Link2, Info, Sparkles, ClipboardCheck, ChevronDown } from 'lucide-react';
@@ -29,7 +28,7 @@ const TodaysPlan: React.FC = () => {
   const goals = useAppStore((state) => state.goals);
   const projects = useAppStore((state) => state.projects);
   const weeklyPlan = useAppStore((state) => state.weeklyPlan);
-  const { addTask, deleteTask, toggleTask, startTimer, reorderTasks, updateTask, focusOnElement, isDayStarted } = useAppStore();
+  const { addTask, deleteTask, toggleTask, startTimer, reorderTasks, updateTask, focusOnElement, isDayStarted, addInboxItem } = useAppStore();
 
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const tagContainerRef = useRef<HTMLDivElement>(null);
@@ -53,16 +52,20 @@ const TodaysPlan: React.FC = () => {
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTaskText.trim()) {
-      let goalId: string | null = null;
-      let weeklyGoalId: string | null = null;
-      if (linkedItemId) {
-        if (linkedItemId.startsWith('weekly-')) {
-          weeklyGoalId = linkedItemId.replace('weekly-', '');
-        } else if (linkedItemId.startsWith('goal-')) {
-          goalId = linkedItemId.replace('goal-', '');
+      if (isDayStarted) {
+        addInboxItem(newTaskText.trim());
+      } else {
+        let goalId: string | null = null;
+        let weeklyGoalId: string | null = null;
+        if (linkedItemId) {
+          if (linkedItemId.startsWith('weekly-')) {
+            weeklyGoalId = linkedItemId.replace('weekly-', '');
+          } else if (linkedItemId.startsWith('goal-')) {
+            goalId = linkedItemId.replace('goal-', '');
+          }
         }
+        addTask(newTaskText.trim(), goalId, newPriority, newTags, false, weeklyGoalId);
       }
-      addTask(newTaskText.trim(), goalId, newPriority, newTags, false, weeklyGoalId);
       setNewTaskText('');
       setLinkedItemId(null);
       setNewPriority('none');
@@ -72,37 +75,35 @@ const TodaysPlan: React.FC = () => {
     }
   };
 
-  const handleTagSelect = (tag: string) => {
-    if (!newTags.includes(tag)) {
-      setNewTags([...newTags, tag]);
+  const handleTagToggle = (tag: string) => {
+    setNewTags(prev => 
+        prev.includes(tag)
+            ? prev.filter(t => t !== tag)
+            : [...prev, tag]
+    );
+  };
+
+  const handleCreateNewTag = (tagToCreate: string) => {
+    const newTag = tagToCreate.trim().replace(/,/g, '');
+    if (newTag && !newTags.includes(newTag)) {
+        setNewTags([...newTags, newTag]);
     }
     setTagInput('');
   };
   
-  const handleTagRemove = (tagToRemove: string) => {
-    setNewTags(newTags.filter(tag => tag !== tagToRemove));
-  };
-  
   const handleTagInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTagInput(e.target.value);
-    if (!isTagDropdownOpen) {
-      setIsTagDropdownOpen(true);
-    }
   };
 
   const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if ((e.key === 'Enter' || e.key === ',') && tagInput.trim()) {
       e.preventDefault();
-      const newTag = tagInput.trim().replace(/,/g, '');
-      if (newTag && !newTags.includes(newTag)) {
-        setNewTags([...newTags, newTag]);
-      }
-      setTagInput('');
+      handleCreateNewTag(tagInput);
     }
   };
 
   const filteredPredefinedTags = PREDEFINED_TAGS.filter(
-    (tag) => !newTags.includes(tag) && tag.toLowerCase().includes(tagInput.toLowerCase())
+    (tag) => tag.toLowerCase().includes(tagInput.toLowerCase())
   );
   
   const handleStartTimerSetup = (taskId: string) => {
@@ -164,129 +165,146 @@ const TodaysPlan: React.FC = () => {
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Planned Tasks for Today</h2>
+      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">
+        {isDayStarted ? 'Add to Inbox' : 'Planned Tasks for Today'}
+      </h2>
       <AnimatePresence>
-        {!isDayStarted && (
-          <motion.form
-            layout
-            onSubmit={handleAddTask}
-            className="flex flex-col gap-2 mb-4 overflow-hidden"
-            initial={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="flex gap-2">
-                <input
-                  id="new-task-input"
-                  ref={newTaskInputRef}
-                  type="text"
-                  value={newTaskText}
-                  onChange={(e) => setNewTaskText(e.target.value)}
-                  placeholder="Add a new task..."
-                  className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
-                />
-                <button
-                  type="submit"
-                  className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center aspect-square transition"
-                  aria-label="Add Task"
-                >
-                  <Plus size={20} />
-                </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <select
-                    value={linkedItemId || ''}
-                    onChange={(e) => setLinkedItemId(e.target.value || null)}
-                    className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
-                >
-                    <option value="">No associated goal</option>
-                    <optgroup label="This Week's Focus">
-                      {weeklyPlan.goals.filter(g => !g.completed).map(goal => (
-                        <option key={goal.id} value={`weekly-${goal.id}`}>📌 {goal.text}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Long Term Goals">
-                      {goals.filter(g => !g.completed && !g.archived).map(goal => (
-                      <option key={goal.id} value={`goal-${goal.id}`}>🎯 {goal.text}</option>
-                      ))}
-                    </optgroup>
-                </select>
-                <div className="flex gap-2 bg-black rounded-lg px-3 py-2 text-sm items-center">
-                    <Flag size={14} className="text-slate-400" />
-                     <select
-                        value={newPriority}
-                        onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
-                        className="w-full bg-transparent text-white dark:text-slate-300 border-none focus:ring-0"
-                    >
-                        <option value="none" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">No Priority</option>
-                        <option value="low" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">Low</option>
-                        <option value="medium" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">Medium</option>
-                        <option value="high" className="bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200">High</option>
-                    </select>
-                </div>
-            </div>
-            <div className="relative" ref={tagContainerRef}>
-              <div 
-                className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center flex-wrap"
+        <motion.form
+          layout
+          onSubmit={handleAddTask}
+          className="flex flex-col gap-2 mb-4 overflow-hidden"
+          initial={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="flex gap-2">
+              <input
+                id="new-task-input"
+                ref={newTaskInputRef}
+                type="text"
+                value={newTaskText}
+                onChange={(e) => setNewTaskText(e.target.value)}
+                placeholder={isDayStarted ? "Capture an idea for the inbox..." : "Add a new task..."}
+                className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
+              />
+              <button
+                type="submit"
+                className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center aspect-square transition"
+                aria-label={isDayStarted ? "Add to Inbox" : "Add Task"}
               >
-                  <Tag size={14} className="text-slate-500" />
-                  {newTags.map(tag => (
-                    <span key={tag} className="flex items-center gap-1 bg-calm-blue-200 dark:bg-calm-blue-800 text-calm-blue-800 dark:text-calm-blue-100 rounded px-2 py-0.5">
-                      {tag}
-                      <button type="button" onClick={() => handleTagRemove(tag)} className="hover:text-red-500"><X size={12}/></button>
-                    </span>
-                  ))}
-                  <input 
-                      type="text"
-                      value={tagInput}
-                      onChange={handleTagInputChange}
-                      onKeyDown={handleTagInputKeyDown}
-                      onFocus={() => setIsTagDropdownOpen(true)}
-                      placeholder="Add tags..."
-                      className="flex-grow bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0 p-0 h-auto"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
-                    className="ml-auto text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    aria-label="Toggle tag suggestions"
-                  >
-                    <ChevronDown size={16} />
-                  </button>
-              </div>
-              <AnimatePresence>
-                {isTagDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -5 }}
-                    className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto"
-                  >
-                    {tagInput.trim() && !newTags.includes(tagInput.trim()) && !PREDEFINED_TAGS.includes(tagInput.trim()) && (
-                      <button type="button" onClick={() => handleTagSelect(tagInput.trim())} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                        Create new tag: "{tagInput.trim()}"
-                      </button>
-                    )}
-                    {filteredPredefinedTags.map(tag => (
-                       <button type="button" key={tag} onClick={() => handleTagSelect(tag)} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                        {tag}
-                      </button>
-                    ))}
-                    {filteredPredefinedTags.length === 0 && !tagInput.trim() && (
-                      <div className="p-2 text-xs text-slate-400">All tags added. Type to create new.</div>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          </motion.form>
-        )}
+                <Plus size={20} />
+              </button>
+          </div>
+          <AnimatePresence>
+            {!isDayStarted && (
+              <motion.div 
+                className="flex flex-col gap-2"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+              >
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <select
+                          value={linkedItemId || ''}
+                          onChange={(e) => setLinkedItemId(e.target.value || null)}
+                          className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
+                      >
+                          <option value="">No associated goal</option>
+                          <optgroup label="This Week's Focus">
+                            {weeklyPlan.goals.filter(g => !g.completed).map(goal => (
+                              <option key={goal.id} value={`weekly-${goal.id}`}>📌 {goal.text}</option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="Long Term Goals">
+                            {goals.filter(g => !g.completed && !g.archived).map(goal => (
+                            <option key={goal.id} value={`goal-${goal.id}`}>🎯 {goal.text}</option>
+                            ))}
+                          </optgroup>
+                      </select>
+                       <div className="relative w-full">
+                          <select
+                              value={newPriority}
+                              onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
+                              style={{ backgroundColor: '', color: '' }}
+                              className="w-full appearance-none bg-slate-100 dark:bg-slate-700 rounded-lg pl-8 pr-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
+                          >
+                              <option value="none">No Priority</option>
+                              <option value="low">Low</option>
+                              <option value="medium">Medium</option>
+                              <option value="high">High</option>
+                          </select>
+                           <Flag size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                      </div>
+                  </div>
+                  <div className="relative" ref={tagContainerRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsTagDropdownOpen(!isTagDropdownOpen)}
+                      className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Tag size={14} className="text-slate-500" />
+                        {newTags.length > 0 ? (
+                          newTags.map(tag => (
+                            <span key={tag} className="bg-calm-blue-200 dark:bg-calm-blue-800 text-calm-blue-800 dark:text-calm-blue-100 rounded px-2 py-0.5 text-xs">
+                              {tag}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-slate-400">Add tags...</span>
+                        )}
+                      </div>
+                      <ChevronDown size={16} className="text-slate-400" />
+                    </button>
+                    <AnimatePresence>
+                      {isTagDropdownOpen && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg p-2"
+                        >
+                          <input 
+                              type="text"
+                              value={tagInput}
+                              onChange={handleTagInputChange}
+                              onKeyDown={handleTagInputKeyDown}
+                              placeholder="Search or create a tag..."
+                              className="w-full bg-slate-100 dark:bg-slate-700 rounded-md px-3 py-1.5 text-sm mb-2 border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                              autoFocus
+                          />
+                          <ul className="max-h-40 overflow-y-auto">
+                            {tagInput.trim() && !PREDEFINED_TAGS.some(t => t.toLowerCase() === tagInput.trim().toLowerCase()) && !newTags.some(t => t.toLowerCase() === tagInput.trim().toLowerCase()) && (
+                              <li>
+                                <button type="button" onClick={() => handleCreateNewTag(tagInput)} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center gap-2">
+                                  <Plus size={14} /> Create new tag: "{tagInput.trim()}"
+                                </button>
+                              </li>
+                            )}
+                            {filteredPredefinedTags.map(tag => (
+                               <li key={tag}>
+                                  <label className="flex items-center gap-2 w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer">
+                                    <input
+                                      type="checkbox"
+                                      checked={newTags.includes(tag)}
+                                      onChange={() => handleTagToggle(tag)}
+                                      className="rounded text-calm-blue-500 focus:ring-calm-blue-500"
+                                    />
+                                    {tag}
+                                  </label>
+                               </li>
+                            ))}
+                          </ul>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </motion.form>
       </AnimatePresence>
-      {isDayStarted && (
-        <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-2 mb-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
-            Day started. Add new tasks via the Unplanned Tasks inbox.
-        </div>
-      )}
+
       <Reorder.Group as="ul" axis="y" values={tasks} onReorder={reorderTasks} className="space-y-2">
         <AnimatePresence>
           {tasks.map((task) => {
@@ -303,7 +321,7 @@ const TodaysPlan: React.FC = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                className={`relative flex items-center gap-3 p-3 bg-black rounded-lg border-l-4 ${priorityMap[task.priority].color} ${isBlocked || task.completed ? 'opacity-60' : (task.taskType !== 'review' ? 'cursor-grab active:cursor-grabbing' : '')}`}
+                className={`relative flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border-l-4 ${priorityMap[task.priority].color} ${isBlocked || task.completed ? 'opacity-60' : (task.taskType !== 'review' ? 'cursor-grab active:cursor-grabbing' : '')}`}
               >
                 {(!isBlocked && !task.completed && !isReviewTask) && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
                 {(isBlocked || task.completed || isReviewTask) && <div className="w-[18px] flex-shrink-0" />}
@@ -331,7 +349,7 @@ const TodaysPlan: React.FC = () => {
                     )}
                   </AnimatePresence>
                 </button>
-                <div className={`flex-grow text-slate-100 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
+                <div className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
                   <p>{task.text}</p>
                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                      {isBlocked && (

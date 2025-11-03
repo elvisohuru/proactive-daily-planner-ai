@@ -29,6 +29,9 @@ import {
   AppView,
   InboxItem,
   DashboardLayout,
+  UnplannedTask as UnplannedTaskType,
+  Toast,
+  WeeklyReviewState,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { differenceInCalendarDays, parseISO, startOfWeek, format, isSunday, isFirstDayOfMonth, getMonth, getDate } from 'date-fns';
@@ -44,6 +47,7 @@ const getTodaysScheduledRoutineTasks = (routine: RoutineTask[], date: Date): Rou
 export const defaultDashboardLayout: DashboardLayout = [
   'ProductivityScore',
   'ProductivityStreak',
+  'WeeklyReviewTrigger',
   'StartDay',
   'WeeklyGoals',
   'DailyRoutine',
@@ -73,6 +77,7 @@ export const useAppStore = create<AppState>()(
       isDayStarted: false,
       focusOnElement: null,
       weeklyPlan: { weekStartDate: '', goals: [] },
+      lastWeekPlan: null,
 
       // Hourly Review State
       dayStartTime: null,
@@ -92,14 +97,24 @@ export const useAppStore = create<AppState>()(
       dashboardItems: defaultDashboardLayout,
       isDashboardInReorderMode: false,
       
-      // Onboarding
-      hasCompletedOnboarding: false,
+      // Day transition
+      tasksToCarryOver: null,
+      
+      // Plan for tomorrow
+      tomorrowsPlan: [],
+
+      // Toasts
+      toasts: [],
+      
+      // Weekly Review
+      weeklyReviewState: { isOpen: false, step: null, lastWeekGoals: [] },
+
 
       // Actions
       initialize: () => {
         const today = new Date();
         const todayString = getTodayDateString();
-        const { plan, routine, performanceHistory, streak, checkAchievements, weeklyPlan, goals, projects } = get();
+        const { plan, routine, performanceHistory, streak, checkAchievements, weeklyPlan, goals, projects, tomorrowsPlan } = get();
 
         // Migration for dashboard layout for existing users
         const state = get();
@@ -125,7 +140,13 @@ export const useAppStore = create<AppState>()(
         // Weekly reset logic
         const startOfThisWeek = startOfWeek(today, { weekStartsOn: 0 }); // Sunday
         const startOfThisWeekString = format(startOfThisWeek, 'yyyy-MM-dd');
-        if (weeklyPlan.weekStartDate !== startOfThisWeekString) {
+        
+        if (weeklyPlan.weekStartDate && weeklyPlan.weekStartDate !== startOfThisWeekString) {
+          set(state => ({ 
+            lastWeekPlan: state.weeklyPlan,
+            weeklyPlan: { weekStartDate: startOfThisWeekString, goals: [] }
+          }));
+        } else if (!weeklyPlan.weekStartDate) {
           set({ weeklyPlan: { weekStartDate: startOfThisWeekString, goals: [] } });
         }
         
@@ -183,6 +204,8 @@ export const useAppStore = create<AppState>()(
           // Check achievements before resetting daily state
           checkAchievements();
 
+          const unfinishedTasks = plan.tasks.filter(t => !t.completed);
+
           // Generate review tasks for today
           const reviewTasks: Task[] = [];
           const checkFrequency = (item: Goal | Project, date: Date) => {
@@ -219,7 +242,7 @@ export const useAppStore = create<AppState>()(
           });
 
           set({
-            plan: { date: todayString, tasks: reviewTasks },
+            plan: { date: todayString, tasks: [...reviewTasks, ...tomorrowsPlan] },
             activeTask: null,
             routine: get().routine.map(task => ({ ...task, completed: false })),
             isDayStarted: false,
@@ -228,6 +251,9 @@ export const useAppStore = create<AppState>()(
             idleTimeLogs: [],
             idleState: null,
             isIdleReviewModalOpen: false,
+            // Set tasks to be carried over, which will trigger the modal
+            tasksToCarryOver: unfinishedTasks.length > 0 ? unfinishedTasks : null,
+            tomorrowsPlan: [],
           });
         }
       },
@@ -242,6 +268,7 @@ export const useAppStore = create<AppState>()(
           plan: { ...state.plan, tasks: [...state.plan.tasks, newTask] },
         }));
         get().checkAchievements();
+        get().addToast({ message: 'Task added to plan.', type: 'success' });
         return newTask;
       },
       
@@ -460,6 +487,7 @@ export const useAppStore = create<AppState>()(
           reviewFrequency,
         };
         set((state) => ({ goals: [...state.goals, newGoal] }));
+        get().addToast({ message: 'Goal created.', type: 'success' });
       },
 
       toggleGoal: (id) => {
@@ -502,6 +530,7 @@ export const useAppStore = create<AppState>()(
                 g.id === goalId ? { ...g, subGoals: [...g.subGoals, newSubGoal], completed: false } : g
             )
         }));
+        get().addToast({ message: 'Sub-goal added.', type: 'success' });
       },
 
       toggleSubGoal: (goalId, subGoalId) => {
@@ -582,12 +611,14 @@ export const useAppStore = create<AppState>()(
                     tasks: state.plan.tasks.map(t => t.id === newTask.id ? { ...t, originGoalId: goalId, originSubGoalId: subGoalId } : t)
                 }
             }));
+            get().addToast({ message: 'Sub-goal sent to plan.', type: 'success' });
         }
       },
 
       addProject: (text, deadline, reviewFrequency) => {
         const newProject: Project = { id: uuidv4(), text, completed: false, deadline, archived: false, subTasks: [], reviewFrequency };
         set(state => ({ projects: [...state.projects, newProject] }));
+        get().addToast({ message: 'Project created.', type: 'success' });
       },
 
       archiveProject: (id) => {
@@ -622,6 +653,7 @@ export const useAppStore = create<AppState>()(
             return p;
           })
         }));
+        get().addToast({ message: 'Sub-task added.', type: 'success' });
       },
 
       toggleSubTask: (projectId, subTaskId) => {
@@ -710,6 +742,7 @@ export const useAppStore = create<AppState>()(
                     tasks: state.plan.tasks.map(t => t.id === newTask.id ? { ...t, originProjectId: projectId, originSubTaskId: subTaskId } : t)
                 }
             }));
+            get().addToast({ message: 'Sub-task sent to plan.', type: 'success' });
         }
       },
 
@@ -718,6 +751,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           routine: [...state.routine, newRoutineTask],
         }));
+        get().addToast({ message: 'Routine task added.', type: 'success' });
       },
 
       toggleRoutineTask: (id, skipLog = false) => {
@@ -772,10 +806,14 @@ export const useAppStore = create<AppState>()(
       },
       
       planUnplannedTask: (id) => {
-        const { unplannedTasks, addTask, isDayStarted } = get();
+        const { unplannedTasks, addTask, isDayStarted, addInboxItem } = get();
         const taskToPlan = unplannedTasks.find(t => t.id === id);
         if(taskToPlan) {
-            addTask(taskToPlan.text, null, 'none', [], isDayStarted, null);
+            if (isDayStarted) {
+                addInboxItem(taskToPlan.text);
+            } else {
+                addTask(taskToPlan.text, null, 'none', [], isDayStarted, null);
+            }
             set(state => ({ unplannedTasks: state.unplannedTasks.filter(t => t.id !== id) }));
         }
       },
@@ -794,7 +832,8 @@ export const useAppStore = create<AppState>()(
           reflections: [newReflection, ...state.reflections.filter(r => r.date !== newReflection.date)]
         }));
         get().checkAchievements();
-        get().closeShutdownRoutine();
+        get().addToast({ message: 'Reflection saved.', type: 'success' });
+        get().setShutdownStep('plan_next');
       },
       
       toggleTheme: () => {
@@ -813,13 +852,12 @@ export const useAppStore = create<AppState>()(
         } else if (!hasReflected) {
             set({ shutdownState: { isOpen: true, step: 'reflect', unfinishedTasks: [] } });
         } else {
-            // Already done everything
-            get().closeShutdownRoutine();
+            set({ shutdownState: { isOpen: true, step: 'plan_next', unfinishedTasks: [] } });
         }
       },
 
       processUnfinishedTasks: () => {
-          const { shutdownState, addUnplannedTask, plan } = get();
+          const { shutdownState, plan } = get();
           const newUnplannedTasks = shutdownState.unfinishedTasks.map(t => ({ id: uuidv4(), text: t.text, createdAt: Date.now() }));
           
           set(state => ({
@@ -827,6 +865,7 @@ export const useAppStore = create<AppState>()(
               plan: { ...plan, tasks: plan.tasks.filter(t => t.completed) },
               shutdownState: { ...state.shutdownState, step: 'reflect' }
           }));
+          get().addToast({ message: `${newUnplannedTasks.length} tasks moved to unplanned.`, type: 'info' });
       },
       
       setShutdownStep: (step) => {
@@ -834,7 +873,23 @@ export const useAppStore = create<AppState>()(
       },
 
       closeShutdownRoutine: () => {
-        set({ shutdownState: { isOpen: false, step: null, unfinishedTasks: [] } });
+        const { shutdownState, tomorrowsPlan } = get();
+        if (shutdownState.step === 'plan_next' && tomorrowsPlan.length > 0) {
+            const newInboxItems: InboxItem[] = tomorrowsPlan.map(task => ({
+                id: uuidv4(),
+                text: task.text,
+                createdAt: Date.now(),
+            }));
+
+            set(state => ({
+                inbox: [...newInboxItems, ...state.inbox],
+                tomorrowsPlan: [],
+                shutdownState: { isOpen: false, step: null, unfinishedTasks: [] }
+            }));
+            get().addToast({ message: `${newInboxItems.length} ideas for tomorrow sent to inbox.`, type: 'success' });
+        } else {
+            set({ shutdownState: { isOpen: false, step: null, unfinishedTasks: [] } });
+        }
       },
 
       setCommandPaletteOpen: (isOpen) => {
@@ -878,7 +933,7 @@ export const useAppStore = create<AppState>()(
           weeklyPlan: state.weeklyPlan,
           inbox: state.inbox,
           dashboardItems: state.dashboardItems,
-          hasCompletedOnboarding: state.hasCompletedOnboarding,
+          tomorrowsPlan: state.tomorrowsPlan,
         };
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -887,6 +942,7 @@ export const useAppStore = create<AppState>()(
         a.download = `proactive-planner-export-${getTodayDateString()}.json`;
         a.click();
         URL.revokeObjectURL(url);
+        get().addToast({ message: 'Data exported as JSON.', type: 'success' });
       },
       
       exportDataAsMarkdown: () => {
@@ -899,6 +955,7 @@ export const useAppStore = create<AppState>()(
         a.download = `proactive-planner-export-${getTodayDateString()}.md`;
         a.click();
         URL.revokeObjectURL(url);
+        get().addToast({ message: 'Data exported as Markdown.', type: 'success' });
       },
 
       exportDataAsCsv: (dataType) => {
@@ -911,6 +968,7 @@ export const useAppStore = create<AppState>()(
         a.download = `proactive-planner-${dataType}-${getTodayDateString()}.csv`;
         a.click();
         URL.revokeObjectURL(url);
+        get().addToast({ message: `${dataType} data exported as CSV.`, type: 'success' });
       },
       
       importData: (jsonString) => {
@@ -949,13 +1007,15 @@ export const useAppStore = create<AppState>()(
               inbox: data.inbox || [],
               dashboardItems: dashboardItems,
               isDashboardInReorderMode: false, // Always reset this on import
-              hasCompletedOnboarding: data.hasCompletedOnboarding || false,
+              tomorrowsPlan: data.tomorrowsPlan || [],
             });
+            get().addToast({ message: 'Data imported successfully.', type: 'success' });
           } else {
             throw new Error('Invalid data structure');
           }
         } catch (error) {
           console.error('Failed to import data:', error);
+          get().addToast({ message: 'Failed to import data.', type: 'error' });
           alert('Failed to import data. Please make sure the file is a valid export.');
         }
       },
@@ -987,6 +1047,7 @@ export const useAppStore = create<AppState>()(
         set(state => ({
             weeklyPlan: { ...state.weeklyPlan, goals: newGoals }
         }));
+        get().addToast({ message: "This week's focus has been set.", type: 'success' });
       },
       toggleWeeklyGoal: (id) => {
         set(state => ({
@@ -1018,7 +1079,8 @@ export const useAppStore = create<AppState>()(
             ...state.weeklyPlan,
             goals: state.weeklyPlan.goals.map(g => g.id === goalId ? { ...g, subGoals: [...g.subGoals, newSubGoal], completed: false } : g)
           }
-        }))
+        }));
+        get().addToast({ message: 'Weekly sub-goal added.', type: 'success' });
       },
       toggleWeeklySubGoal: (goalId, subGoalId) => {
         set(state => {
@@ -1101,6 +1163,7 @@ export const useAppStore = create<AppState>()(
               plan: { ...state.plan, tasks: newTasks }
             };
           });
+          get().addToast({ message: 'Weekly sub-goal sent to plan.', type: 'success' });
         }
       },
 
@@ -1112,6 +1175,7 @@ export const useAppStore = create<AppState>()(
       addInboxItem: (text) => {
         const newItem: InboxItem = { id: uuidv4(), text, createdAt: Date.now() };
         set(state => ({ inbox: [newItem, ...state.inbox] }));
+        get().addToast({ message: 'Idea captured in inbox.', type: 'success' });
       },
       deleteInboxItem: (id) => {
         set(state => ({ inbox: state.inbox.filter(item => item.id !== id) }));
@@ -1153,15 +1217,81 @@ export const useAppStore = create<AppState>()(
 
         get().deleteInboxItem(itemId);
         get().setProcessingInboxItem(null);
+        get().addToast({ message: 'Inbox item processed.', type: 'success' });
     },
     
     // Dashboard layout action
     setDashboardItems: (newItems) => set({ dashboardItems: newItems }),
     setDashboardReorderMode: (isInReorderMode) => set({ isDashboardInReorderMode: isInReorderMode }),
     
-    // Onboarding action
-    completeOnboarding: () => set({ hasCompletedOnboarding: true }),
+    // Day transition actions
+    processCarryOverTasks: (tasksToCarry, tasksToInbox) => {
+        const newUnplanned = tasksToInbox.map((t): UnplannedTaskType => ({
+            id: uuidv4(),
+            text: t.text,
+            createdAt: Date.now()
+        }));
 
+        set(state => ({
+            plan: {
+                ...state.plan,
+                tasks: [...state.plan.tasks, ...tasksToCarry]
+            },
+            unplannedTasks: [...newUnplanned, ...state.unplannedTasks],
+            tasksToCarryOver: null
+        }));
+    },
+    clearCarryOverTasks: () => {
+        set({ tasksToCarryOver: null });
+    },
+
+    // Actions for planning tomorrow
+    addTomorrowsTask: (text) => {
+        const newTask: Task = { id: uuidv4(), text, completed: false, goalId: null, priority: 'none', tags: [], dependsOn: [], isBonus: false, weeklyGoalId: null, taskType: 'task' };
+        set((state) => ({
+            tomorrowsPlan: [...state.tomorrowsPlan, newTask],
+        }));
+    },
+    deleteTomorrowsTask: (id) => {
+        set((state) => ({
+            tomorrowsPlan: state.tomorrowsPlan.filter((task) => task.id !== id),
+        }));
+    },
+    
+    // Toast Actions
+    addToast: (toast: Omit<Toast, 'id'>) => {
+      const id = uuidv4();
+      set(state => ({ toasts: [...state.toasts, { id, ...toast }] }));
+      setTimeout(() => get().removeToast(id), 4000);
+    },
+    removeToast: (id: string) => {
+      set(state => ({ toasts: state.toasts.filter(t => t.id !== id) }));
+    },
+
+    // Weekly Review Actions
+    startWeeklyReview: () => {
+      const { lastWeekPlan } = get();
+      if (lastWeekPlan && lastWeekPlan.goals.length > 0) {
+        set({
+          weeklyReviewState: {
+            isOpen: true,
+            step: 'review_goals',
+            lastWeekGoals: lastWeekPlan.goals,
+          }
+        });
+      } else {
+        get().addToast({ message: "No weekly plan from last week to review.", type: 'info' });
+      }
+    },
+    setWeeklyReviewStep: (step) => {
+      set(state => ({ weeklyReviewState: { ...state.weeklyReviewState, step } }));
+    },
+    closeWeeklyReview: () => {
+      set(state => ({
+        weeklyReviewState: { isOpen: false, step: null, lastWeekGoals: [] },
+        lastWeekPlan: null // Consume the review for this week
+      }));
+    },
     }),
     {
       name: STORAGE_KEYS.APP_STATE,

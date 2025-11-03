@@ -28,11 +28,15 @@ import InboxView from './components/InboxView';
 import ProcessInboxItemModal from './components/ProcessInboxItemModal';
 import CalendarView from './components/CalendarView';
 import DashboardCard from './components/DashboardCard';
-import OnboardingGuide from './components/OnboardingGuide';
+import CarryOverModal from './components/CarryOverModal';
+import Toaster from './components/Toaster';
+import WeeklyReview from './components/WeeklyReview';
+import WeeklyReviewTrigger from './components/WeeklyReviewTrigger';
 
 const dashboardComponentMap: { [key: string]: { component: React.FC, title: string, span: string } } = {
   ProductivityScore: { component: ProductivityScore, title: 'Productivity Score', span: 'lg:col-span-3' },
   WeeklyGoals: { component: WeeklyGoals, title: "This Week's Focus", span: 'lg:col-span-3' },
+  WeeklyReviewTrigger: { component: WeeklyReviewTrigger, title: 'Weekly Review', span: 'lg:col-span-3' },
   StartDay: { component: StartDay, title: 'Start Day', span: 'lg:col-span-3' },
   DailyRoutine: { component: DailyRoutine, title: 'Daily Routine', span: 'lg:col-span-3' },
   TodaysPlan: { component: TodaysPlan, title: 'Planned Tasks', span: 'lg:col-span-3' },
@@ -83,17 +87,12 @@ const DashboardView = () => {
             ? 'w-full lg:flex-basis-[calc(60%-0.75rem)]' 
             : 'w-full lg:flex-basis-[calc(40%-0.75rem)]';
             
-          const onboardingId = componentId === 'WeeklyGoals' ? 'onboarding-weekly-goals' : 
-                               componentId === 'TodaysPlan' ? 'onboarding-daily-plan' :
-                               undefined;
-
           return (
             <Reorder.Item
               key={componentId}
               value={componentId}
               dragListener={isDashboardInReorderMode}
               className={`${widthClass} ${isDashboardInReorderMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
-              id={onboardingId}
             >
               <DashboardCard title={item.title} componentId={componentId}>
                 <Component />
@@ -203,7 +202,9 @@ function App() {
       <IdleCountdown />
       <IdleReviewModal />
       <ProcessInboxItemModal />
-      <OnboardingGuide />
+      <CarryOverModal />
+      <Toaster />
+      <WeeklyReview />
     </div>
   );
 }

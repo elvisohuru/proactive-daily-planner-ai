@@ -139,7 +139,7 @@ export type Streak = {
 
 export type ShutdownState = {
   isOpen: boolean;
-  step: 'review' | 'reflect' | null;
+  step: 'review' | 'reflect' | 'plan_next' | null;
   unfinishedTasks: Task[];
 };
 
@@ -174,6 +174,21 @@ export type AppView = 'dashboard' | 'goals' | 'reports' | 'insights' | 'inbox' |
 
 export type DashboardLayout = string[];
 
+// New Toast type
+export type Toast = {
+  id: string;
+  message: string;
+  type: 'success' | 'error' | 'info';
+};
+
+// New Weekly Review State
+export type WeeklyReviewState = {
+  isOpen: boolean;
+  step: 'review_goals' | 'review_performance' | 'plan_next_week' | null;
+  lastWeekGoals: WeeklyGoal[];
+};
+
+
 // The main state structure
 export interface AppState {
   plan: TodaysPlan;
@@ -193,6 +208,7 @@ export interface AppState {
   isDayStarted: boolean;
   focusOnElement: string | null;
   weeklyPlan: WeeklyPlan;
+  lastWeekPlan: WeeklyPlan | null;
   // New state for hourly review
   dayStartTime: number | null;
   idleTimeLogs: IdleTimeEntry[];
@@ -211,8 +227,18 @@ export interface AppState {
   dashboardItems: DashboardLayout;
   isDashboardInReorderMode: boolean;
   
-  // Onboarding
-  hasCompletedOnboarding: boolean;
+  // Day transition
+  tasksToCarryOver: Task[] | null;
+
+  // Plan for tomorrow
+  tomorrowsPlan: Task[];
+
+  // Toasts
+  toasts: Toast[];
+
+  // Weekly Review
+  weeklyReviewState: WeeklyReviewState;
+
 
   // Actions
   initialize: () => void;
@@ -263,7 +289,7 @@ export interface AppState {
   startShutdownRoutine: () => void;
   processUnfinishedTasks: () => void;
   closeShutdownRoutine: () => void;
-  setShutdownStep: (step: 'review' | 'reflect') => void;
+  setShutdownStep: (step: 'review' | 'reflect' | 'plan_next') => void;
   setCommandPaletteOpen: (isOpen: boolean) => void;
   setFocusOnElement: (elementId: string | null) => void;
   checkAchievements: () => void;
@@ -312,6 +338,20 @@ export interface AppState {
   setDashboardItems: (newItems: DashboardLayout) => void;
   setDashboardReorderMode: (isInReorderMode: boolean) => void;
   
-  // Action for onboarding
-  completeOnboarding: () => void;
+  // Actions for day transition
+  processCarryOverTasks: (tasksToCarry: Task[], tasksToInbox: Task[]) => void;
+  clearCarryOverTasks: () => void;
+
+  // Actions for planning tomorrow
+  addTomorrowsTask: (text: string) => void;
+  deleteTomorrowsTask: (id: string) => void;
+  
+  // Toast actions
+  addToast: (toast: Omit<Toast, 'id'>) => void;
+  removeToast: (id: string) => void;
+
+  // Weekly Review actions
+  startWeeklyReview: () => void;
+  setWeeklyReviewStep: (step: WeeklyReviewState['step']) => void;
+  closeWeeklyReview: () => void;
 }
