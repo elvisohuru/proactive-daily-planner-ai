@@ -80,23 +80,19 @@ const DashboardView = () => {
       <Reorder.Group
         values={dashboardItems}
         onReorder={setDashboardItems}
-        className="flex flex-wrap gap-6"
+        className="grid grid-cols-1 lg:grid-cols-5 gap-6"
       >
         {dashboardItems.map((componentId) => {
           const item = dashboardComponentMap[componentId];
           if (!item) return null;
           const Component = item.component;
-          
-          const widthClass = item.span === 'lg:col-span-3' 
-            ? 'w-full lg:flex-basis-[calc(60%-0.75rem)]' 
-            : 'w-full lg:flex-basis-[calc(40%-0.75rem)]';
             
           return (
             <Reorder.Item
               key={componentId}
               value={componentId}
               dragListener={isDashboardInReorderMode}
-              className={`${widthClass} ${isDashboardInReorderMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              className={`${item.span} ${isDashboardInReorderMode ? 'cursor-grab active:cursor-grabbing' : ''}`}
             >
               <DashboardCard title={item.title} componentId={componentId}>
                 <Component />
