@@ -10,10 +10,10 @@ const ReflectionTrigger: React.FC = () => {
         <button
           onClick={startShutdownRoutine}
           className="w-full flex items-center justify-center gap-2 bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-bold py-3 px-4 rounded-lg transition"
-          aria-label="Wrap up day"
+          aria-label="End of Day reflection"
         >
           <BookText size={20} />
-          Wrap Up Day
+          End of Day reflection
         </button>
     </div>
   );

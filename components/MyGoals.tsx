@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Check, Target, Archive, RefreshCw, FolderKanban, Link2, Info, ArrowUpCircle, CircleCheck } from 'lucide-react';
+import { Plus, Trash2, Check, Target, Archive, RefreshCw, FolderKanban, Link2, Info, ArrowUpCircle, CircleCheck, ChevronDown, ChevronUp } from 'lucide-react';
 import { getDeadlineCountdown } from '../utils/dateUtils';
 import { Goal, GoalCategory, Project, SubTask, SubGoal } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -254,6 +254,7 @@ const ProjectItem: React.FC<{
   const [countdown, setCountdown] = useState(getDeadlineCountdown(project.deadline));
   const [newSubTaskText, setNewSubTaskText] = useState('');
   const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(project.subTasks.length === 0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -275,7 +276,7 @@ const ProjectItem: React.FC<{
   const progress = totalSubTasks > 0 ? (completedSubTasks / totalSubTasks) * 100 : (project.completed ? 100 : 0);
 
   return (
-    <li className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+    <li className="flex flex-col gap-1 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
       <div className="flex items-start gap-3">
          <div className={`mt-1 flex-shrink-0 ${project.completed ? 'text-calm-green-500' : 'text-calm-blue-500'}`}><FolderKanban size={20} /></div>
          <div className="flex-grow">
@@ -308,24 +309,51 @@ const ProjectItem: React.FC<{
             <button onClick={() => onArchive(project.id)} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0" aria-label="Archive project"><Archive size={16} /></button>
         )}
       </div>
+      
+      {!project.archived && project.subTasks.length > 0 && (
+        <div className="pl-8">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {isExpanded ? 'Hide sub-tasks' : `Show ${project.subTasks.length} sub-tasks`}
+            </button>
+        </div>
+      )}
+
       {!project.archived && (
-          <div className="pl-8">
-              <ul className="space-y-1">
-                  <AnimatePresence>
-                    {project.subTasks.map(st => <SubTaskItem key={st.id} subTask={st} projectId={project.id} allSubTasks={project.subTasks} editingDepsFor={editingDepsFor} setEditingDepsFor={setEditingDepsFor} />)}
-                  </AnimatePresence>
-              </ul>
-              <form onSubmit={handleAddSubTask} className="flex gap-2 mt-2">
-                  <input 
-                      type="text"
-                      value={newSubTaskText}
-                      onChange={e => setNewSubTaskText(e.target.value)}
-                      placeholder="Add a sub-task..."
-                      className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
-                  />
-                  <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-task"><Plus size={18}/></button>
-              </form>
-          </div>
+          <AnimatePresence initial={false}>
+              {isExpanded && (
+                  <motion.div
+                      key="content"
+                      initial="collapsed"
+                      animate="open"
+                      exit="collapsed"
+                      variants={{
+                          open: { opacity: 1, height: 'auto' },
+                          collapsed: { opacity: 0, height: 0 }
+                      }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                  >
+                      <div className="pl-8 pt-2">
+                          <ul className="space-y-1">
+                              <AnimatePresence>
+                                {project.subTasks.map(st => <SubTaskItem key={st.id} subTask={st} projectId={project.id} allSubTasks={project.subTasks} editingDepsFor={editingDepsFor} setEditingDepsFor={setEditingDepsFor} />)}
+                              </AnimatePresence>
+                          </ul>
+                          <form onSubmit={handleAddSubTask} className="flex gap-2 mt-2">
+                              <input 
+                                  type="text"
+                                  value={newSubTaskText}
+                                  onChange={e => setNewSubTaskText(e.target.value)}
+                                  placeholder="Add a sub-task..."
+                                  className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                              />
+                              <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-task"><Plus size={18}/></button>
+                          </form>
+                      </div>
+                  </motion.div>
+              )}
+          </AnimatePresence>
       )}
     </li>
   );
@@ -342,6 +370,7 @@ const GoalItem: React.FC<{
   const [countdown, setCountdown] = useState(getDeadlineCountdown(goal.deadline));
   const [newSubGoalText, setNewSubGoalText] = useState('');
   const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(goal.subGoals.length === 0);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -363,7 +392,7 @@ const GoalItem: React.FC<{
   const progress = totalSubGoals > 0 ? (completedSubGoals / totalSubGoals) * 100 : (goal.completed ? 100 : 0);
 
   return (
-    <li className="flex flex-col gap-2 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
+    <li className="flex flex-col gap-1 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg">
       <div className="flex items-start gap-3">
          <div className={`mt-1 flex-shrink-0 ${goal.completed ? 'text-calm-green-500' : 'text-calm-blue-500'}`}><Target size={20} /></div>
          <div className="flex-grow">
@@ -396,24 +425,51 @@ const GoalItem: React.FC<{
             <button onClick={() => onArchive(goal.id)} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0" aria-label="Archive goal"><Archive size={16} /></button>
         )}
       </div>
+      
+      {!goal.archived && goal.subGoals.length > 0 && (
+        <div className="pl-8">
+            <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
+                {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                {isExpanded ? 'Hide sub-goals' : `Show ${goal.subGoals.length} sub-goals`}
+            </button>
+        </div>
+      )}
+
       {!goal.archived && (
-          <div className="pl-8">
-              <ul className="space-y-1">
-                  <AnimatePresence>
-                    {goal.subGoals.map(sg => <SubGoalItem key={sg.id} subGoal={sg} goalId={goal.id} allSubGoals={goal.subGoals} editingDepsFor={editingDepsFor} setEditingDepsFor={setEditingDepsFor} />)}
-                  </AnimatePresence>
-              </ul>
-              <form onSubmit={handleAddSubGoal} className="flex gap-2 mt-2">
-                  <input 
-                      type="text"
-                      value={newSubGoalText}
-                      onChange={e => setNewSubGoalText(e.target.value)}
-                      placeholder="Add a sub-goal..."
-                      className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
-                  />
-                  <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-goal"><Plus size={18}/></button>
-              </form>
-          </div>
+           <AnimatePresence initial={false}>
+              {isExpanded && (
+                  <motion.div
+                      key="content"
+                      initial="collapsed"
+                      animate="open"
+                      exit="collapsed"
+                      variants={{
+                          open: { opacity: 1, height: 'auto' },
+                          collapsed: { opacity: 0, height: 0 }
+                      }}
+                      transition={{ duration: 0.3, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                  >
+                       <div className="pl-8 pt-2">
+                          <ul className="space-y-1">
+                              <AnimatePresence>
+                                {goal.subGoals.map(sg => <SubGoalItem key={sg.id} subGoal={sg} goalId={goal.id} allSubGoals={goal.subGoals} editingDepsFor={editingDepsFor} setEditingDepsFor={setEditingDepsFor} />)}
+                              </AnimatePresence>
+                          </ul>
+                          <form onSubmit={handleAddSubGoal} className="flex gap-2 mt-2">
+                              <input 
+                                  type="text"
+                                  value={newSubGoalText}
+                                  onChange={e => setNewSubGoalText(e.target.value)}
+                                  placeholder="Add a sub-goal..."
+                                  className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                              />
+                              <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-goal"><Plus size={18}/></button>
+                          </form>
+                      </div>
+                  </motion.div>
+              )}
+          </AnimatePresence>
       )}
     </li>
   );

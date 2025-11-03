@@ -15,7 +15,7 @@ const priorityMap: { [key in TaskPriority]: { color: string, label: string } } =
 
 const TodaysPlan: React.FC = () => {
   const [newTaskText, setNewTaskText] = useState('');
-  const [newGoalId, setNewGoalId] = useState<string | null>(null);
+  const [linkedItemId, setLinkedItemId] = useState<string | null>(null);
   const [newPriority, setNewPriority] = useState<TaskPriority>('none');
   const [newTags, setNewTags] = useState<string[]>([]);
   const [tagInput, setTagInput] = useState('');
@@ -28,6 +28,7 @@ const TodaysPlan: React.FC = () => {
   const tasks = useAppStore((state) => state.plan.tasks);
   const goals = useAppStore((state) => state.goals);
   const projects = useAppStore((state) => state.projects);
+  const weeklyPlan = useAppStore((state) => state.weeklyPlan);
   const { addTask, deleteTask, toggleTask, startTimer, reorderTasks, updateTask, focusOnElement, isDayStarted } = useAppStore();
 
   const newTaskInputRef = useRef<HTMLInputElement>(null);
@@ -52,9 +53,18 @@ const TodaysPlan: React.FC = () => {
   const handleAddTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTaskText.trim()) {
-      addTask(newTaskText.trim(), newGoalId, newPriority, newTags);
+      let goalId: string | null = null;
+      let weeklyGoalId: string | null = null;
+      if (linkedItemId) {
+        if (linkedItemId.startsWith('weekly-')) {
+          weeklyGoalId = linkedItemId.replace('weekly-', '');
+        } else if (linkedItemId.startsWith('goal-')) {
+          goalId = linkedItemId.replace('goal-', '');
+        }
+      }
+      addTask(newTaskText.trim(), goalId, newPriority, newTags, false, weeklyGoalId);
       setNewTaskText('');
-      setNewGoalId(null);
+      setLinkedItemId(null);
       setNewPriority('none');
       setNewTags([]);
       setTagInput('');
@@ -125,6 +135,14 @@ const TodaysPlan: React.FC = () => {
   };
 
   const getOriginText = (task: Task): string => {
+    if (task.originWeeklyGoalId) {
+        const weeklyGoal = weeklyPlan.goals.find(g => g.id === task.originWeeklyGoalId);
+        if (weeklyGoal) return `🔗 from Weekly Goal: '${weeklyGoal.text}'`;
+    }
+    if (task.weeklyGoalId) {
+      const weeklyGoal = weeklyPlan.goals.find(g => g.id === task.weeklyGoalId);
+      if (weeklyGoal) return `🔗 from Weekly Goal: '${weeklyGoal.text}'`;
+    }
     if (task.originProjectId) {
         const project = projects.find(p => p.id === task.originProjectId);
         if (project) return `🔗 from Project: '${project.text}'`;
@@ -177,14 +195,21 @@ const TodaysPlan: React.FC = () => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <select
-                    value={newGoalId || ''}
-                    onChange={(e) => setNewGoalId(e.target.value || null)}
+                    value={linkedItemId || ''}
+                    onChange={(e) => setLinkedItemId(e.target.value || null)}
                     className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
                 >
                     <option value="">No associated goal</option>
-                    {goals.filter(g => !g.completed && !g.archived).map(goal => (
-                    <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
-                    ))}
+                    <optgroup label="This Week's Focus">
+                      {weeklyPlan.goals.filter(g => !g.completed).map(goal => (
+                        <option key={goal.id} value={`weekly-${goal.id}`}>📌 {goal.text}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Long Term Goals">
+                      {goals.filter(g => !g.completed && !g.archived).map(goal => (
+                      <option key={goal.id} value={`goal-${goal.id}`}>🎯 {goal.text}</option>
+                      ))}
+                    </optgroup>
                 </select>
                 <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center">
                     <Flag size={14} className="text-slate-500" />

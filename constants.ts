@@ -13,3 +13,6 @@ export const PREDEFINED_TAGS: string[] = [
 export const STORAGE_KEYS = {
   APP_STATE: 'proactivePlannerState',
 };
+
+// Durations in seconds
+export const IDLE_DETECTION_SECONDS = 30;

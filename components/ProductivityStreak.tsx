@@ -53,7 +53,7 @@ const ProductivityStreak: React.FC = () => {
       </p>
 
       <div className="mt-4 pt-4 border-t border-slate-200 dark:border-slate-700 w-full flex justify-center items-baseline gap-2">
-        <span className="font-semibold text-slate-600 dark:text-slate-400">Longest:</span>
+        <span className="font-semibold text-slate-600 dark:text-slate-400">Longest streak:</span>
         <span className="font-bold text-xl text-slate-700 dark:text-slate-200">{streak.longest}</span>
         <span className="text-sm text-slate-500 dark:text-slate-400">days</span>
       </div>

@@ -15,6 +15,11 @@ import ProductivityStreak from './components/ProductivityStreak';
 import CommandPalette from './components/CommandPalette';
 import ShutdownRoutine from './components/ShutdownRoutine';
 import StartDay from './components/StartDay';
+import IdleTimeTracker from './components/IdleTimeTracker';
+import IdleCountdown from './components/IdleCountdown';
+import IdleReviewModal from './components/IdleReviewModal';
+import WastedTime from './components/WastedTime';
+import WeeklyGoals from './components/WeeklyGoals';
 
 function App() {
   const { theme, initialize, setCommandPaletteOpen } = useAppStore();
@@ -57,6 +62,7 @@ function App() {
               <ProductivityScore />
               <ProductivityStreak />
             </div>
+            <WeeklyGoals />
             <StartDay />
             <DailyRoutine />
             <TodaysPlan />
@@ -65,6 +71,7 @@ function App() {
             <MyGoals />
             <UnplannedTasks />
             <ReflectionTrigger />
+            <WastedTime />
             <DataAndInsights />
             <TimeLog />
             <PerformanceHistory />
@@ -74,6 +81,9 @@ function App() {
       <TaskTimer />
       <ShutdownRoutine />
       <CommandPalette />
+      <IdleTimeTracker />
+      <IdleCountdown />
+      <IdleReviewModal />
     </div>
   );
 }

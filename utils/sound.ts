@@ -3,6 +3,7 @@
 
 let audioContext: AudioContext | null = null;
 let alarmInterval: number | null = null;
+let idleAlarmInterval: number | null = null;
 
 const getContext = (): AudioContext | null => {
   if (typeof window === 'undefined') return null;
@@ -62,29 +63,75 @@ export const playCompletionSound = () => {
       context.resume();
     }
 
-    const playNote = (frequency: number, startTime: number, duration: number) => {
-      const oscillator = context.createOscillator();
-      const gainNode = context.createGain();
+    const oscillator = context.createOscillator();
+    const gainNode = context.createGain();
 
-      oscillator.connect(gainNode);
-      gainNode.connect(context.destination);
+    oscillator.connect(gainNode);
+    gainNode.connect(context.destination);
 
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(frequency, startTime);
-      gainNode.gain.setValueAtTime(0.3, startTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+    gainNode.gain.setValueAtTime(0, context.currentTime);
+    gainNode.gain.linearRampToValueAtTime(0.3, context.currentTime + 0.05);
+    gainNode.gain.linearRampToValueAtTime(0, context.currentTime + 0.25);
 
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    };
+    oscillator.type = 'sine';
+    oscillator.frequency.setValueAtTime(523.25, context.currentTime); // C5
+    oscillator.frequency.linearRampToValueAtTime(1046.50, context.currentTime + 0.2); // C6
 
-    const now = context.currentTime;
-    playNote(523.25, now, 0.15); // C5
-    playNote(659.25, now + 0.1, 0.15); // E5
-    playNote(783.99, now + 0.2, 0.15); // G5
-    playNote(1046.50, now + 0.3, 0.2); // C6
-    
+    oscillator.start(context.currentTime);
+    oscillator.stop(context.currentTime + 0.3);
   } catch (error) {
     console.error("Failed to play completion sound:", error);
+  }
+};
+
+
+// For Hourly Review Feature
+export const stopIdleAlarm = () => {
+  if (idleAlarmInterval) {
+    clearInterval(idleAlarmInterval);
+    idleAlarmInterval = null;
+  }
+};
+
+export const playIdleAlarm = () => {
+  stopIdleAlarm();
+  try {
+    const context = getContext();
+    if (!context) return;
+
+    if (context.state === 'suspended') {
+      context.resume();
+    }
+
+    const playChime = () => {
+      const oscillator = context.createOscillator();
+      const gainNode = context.createGain();
+      oscillator.connect(gainNode);
+      gainNode.connect(context.destination);
+      
+      gainNode.gain.setValueAtTime(0, context.currentTime);
+      gainNode.gain.linearRampToValueAtTime(0.2, context.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 1.5);
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(987.77, context.currentTime); // B5
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 1.5);
+    };
+
+    const playFullSequence = () => {
+        playChime();
+        setTimeout(playChime, 300);
+    }
+    
+    playFullSequence();
+    idleAlarmInterval = window.setInterval(playFullSequence, 5000); // Repeat every 5 seconds
+
+    // Stop the alarm after 1 minute
+    setTimeout(stopIdleAlarm, 60000);
+
+  } catch (error) {
+    console.error("Failed to play idle alarm:", error);
   }
 };

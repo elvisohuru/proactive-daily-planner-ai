@@ -21,87 +21,18 @@ import {
   Project,
   SubTask,
   SubGoal,
+  AppState,
+  IdleTimeEntry,
+  IdleState,
+  WeeklyPlan,
+  WeeklyGoal,
+  WeeklySubGoal,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
-import { differenceInCalendarDays, parseISO } from 'date-fns';
+import { differenceInCalendarDays, parseISO, startOfWeek, format } from 'date-fns';
 import { achievementsList } from '../utils/achievements';
 import { exportStateToMarkdown, convertToCsv } from '../utils/exportUtils';
 
-
-export interface AppState {
-  plan: TodaysPlan;
-  logs: LogEntry[];
-  goals: Goal[];
-  projects: Project[];
-  routine: RoutineTask[];
-  unplannedTasks: UnplannedTask[];
-  activeTask: ActiveTask | null;
-  reflections: Reflection[];
-  performanceHistory: PerformanceRecord[];
-  streak: Streak;
-  unlockedAchievements: string[];
-  theme: Theme;
-  shutdownState: ShutdownState;
-  isCommandPaletteOpen: boolean;
-  isDayStarted: boolean;
-  focusOnElement: string | null;
-
-  // Actions
-  initialize: () => void;
-  startDay: () => void;
-  addTask: (text: string, goalId: string | null, priority: TaskPriority, tags: string[], isBonus?: boolean) => Task;
-  toggleTask: (id: string) => void;
-  deleteTask: (id: string) => void;
-  updateTask: (id: string, updates: Partial<Pick<Task, 'priority' | 'tags' | 'dependsOn'>>) => void;
-  reorderTasks: (tasks: Task[]) => void;
-  linkTaskToGoal: (taskId: string, goalId: string | null) => void;
-  startTimer: (id: string, type: 'plan' | 'routine', task: string, durationMinutes: number) => void;
-  updateTimer: (updates: Partial<ActiveTask>) => void;
-  finishTimer: () => void;
-  completeActiveTask: () => void;
-  extendTimer: (minutes: number) => void;
-  addLog: (log: Omit<LogEntry, 'id'|'timestamp'|'dateString'>) => void;
-  addGoal: (text: string, category: GoalCategory, deadline: string | null) => void;
-  toggleGoal: (id: string) => void;
-  archiveGoal: (id: string) => void;
-  restoreGoal: (id: string) => void;
-  permanentlyDeleteGoal: (id: string) => void;
-  addSubGoal: (goalId: string, text: string) => void;
-  toggleSubGoal: (goalId: string, subGoalId: string) => void;
-  deleteSubGoal: (goalId: string, subGoalId: string) => void;
-  updateSubGoal: (goalId: string, subGoalId: string, updates: Partial<Pick<SubGoal, 'dependsOn'>>) => void;
-  sendSubGoalToPlan: (goalId: string, subGoalId: string) => void;
-  addProject: (text: string, deadline: string | null) => void;
-  archiveProject: (id: string) => void;
-  restoreProject: (id: string) => void;
-  permanentlyDeleteProject: (id: string) => void;
-  addSubTask: (projectId: string, text: string) => void;
-  toggleSubTask: (projectId: string, subTaskId: string) => void;
-  deleteSubTask: (projectId: string, subTaskId: string) => void;
-  updateSubTask: (projectId: string, subTaskId: string, updates: Partial<Pick<SubTask, 'dependsOn'>>) => void;
-  sendSubTaskToPlan: (projectId: string, subTaskId: string) => void;
-  addRoutineTask: (text: string, goalId: string | null, recurringDays: number[]) => void;
-  toggleRoutineTask: (id: string, skipLog?: boolean) => void;
-  updateRoutineTask: (id: string, updates: Partial<Pick<RoutineTask, 'dependsOn'>>) => void;
-  deleteRoutineTask: (id: string) => void;
-  reorderRoutine: (routine: RoutineTask[]) => void;
-  addUnplannedTask: (text: string) => void;
-  planUnplannedTask: (id: string) => void;
-  deleteUnplannedTask: (id: string) => void;
-  addReflection: (well: string, improve: string) => void;
-  toggleTheme: () => void;
-  startShutdownRoutine: () => void;
-  processUnfinishedTasks: () => void;
-  closeShutdownRoutine: () => void;
-  setShutdownStep: (step: 'review' | 'reflect') => void;
-  setCommandPaletteOpen: (isOpen: boolean) => void;
-  setFocusOnElement: (elementId: string | null) => void;
-  checkAchievements: () => void;
-  exportDataAsJson: () => void;
-  exportDataAsMarkdown: () => void;
-  exportDataAsCsv: (dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects') => void;
-  importData: (jsonString: string) => void;
-}
 
 const getTodaysScheduledRoutineTasks = (routine: RoutineTask[], date: Date): RoutineTask[] => {
     const todayIndex = date.getDay();
@@ -128,12 +59,27 @@ export const useAppStore = create<AppState>()(
       isCommandPaletteOpen: false,
       isDayStarted: false,
       focusOnElement: null,
+      weeklyPlan: { weekStartDate: '', goals: [] },
+
+      // Hourly Review State
+      dayStartTime: null,
+      idleTimeLogs: [],
+      isIdleReviewModalOpen: false,
+      idleState: null,
 
       // Actions
       initialize: () => {
+        const today = new Date();
         const todayString = getTodayDateString();
-        const { plan, routine, performanceHistory, streak, checkAchievements } = get();
+        const { plan, routine, performanceHistory, streak, checkAchievements, weeklyPlan } = get();
 
+        // Weekly reset logic
+        const startOfThisWeek = startOfWeek(today, { weekStartsOn: 0 }); // Sunday
+        const startOfThisWeekString = format(startOfThisWeek, 'yyyy-MM-dd');
+        if (weeklyPlan.weekStartDate !== startOfThisWeekString) {
+          set({ weeklyPlan: { weekStartDate: startOfThisWeekString, goals: [] } });
+        }
+        
         if (plan.date !== todayString) {
           const yesterday = plan.date;
           const yesterdayDate = parseISO(yesterday);
@@ -193,16 +139,21 @@ export const useAppStore = create<AppState>()(
             activeTask: null,
             routine: get().routine.map(task => ({ ...task, completed: false })),
             isDayStarted: false,
+            // Reset hourly review state
+            dayStartTime: null,
+            idleTimeLogs: [],
+            idleState: null,
+            isIdleReviewModalOpen: false,
           });
         }
       },
 
       startDay: () => {
-        set({ isDayStarted: true });
+        set({ isDayStarted: true, dayStartTime: Date.now() });
       },
 
-      addTask: (text, goalId, priority, tags, isBonus = false) => {
-        const newTask: Task = { id: uuidv4(), text, completed: false, goalId, priority, tags, dependsOn: [], isBonus };
+      addTask: (text, goalId, priority, tags, isBonus = false, weeklyGoalId = null) => {
+        const newTask: Task = { id: uuidv4(), text, completed: false, goalId, priority, tags, dependsOn: [], isBonus, weeklyGoalId };
         set((state) => ({
           plan: { ...state.plan, tasks: [...state.plan.tasks, newTask] },
         }));
@@ -264,6 +215,20 @@ export const useAppStore = create<AppState>()(
                       return g;
                   });
               }
+              // Sync with Weekly Sub-goal
+              if (toggledTask.originWeeklyGoalId && toggledTask.originWeeklySubGoalId) {
+                const { originWeeklyGoalId, originWeeklySubGoalId } = toggledTask;
+                state.weeklyPlan.goals = state.weeklyPlan.goals.map(g => {
+                    if (g.id === originWeeklyGoalId) {
+                        const updatedSubGoals = g.subGoals.map(sg => 
+                            sg.id === originWeeklySubGoalId ? { ...sg, completed: isNowCompleted } : sg
+                        );
+                        const allCompleted = updatedSubGoals.length > 0 && updatedSubGoals.every(sg => sg.completed);
+                        return { ...g, subGoals: updatedSubGoals, completed: allCompleted };
+                    }
+                    return g;
+                });
+              }
           }
       
           // Dependency re-render logic
@@ -278,6 +243,7 @@ export const useAppStore = create<AppState>()(
             plan: { ...state.plan, tasks: finalTasks },
             projects: [...state.projects],
             goals: [...state.goals],
+            weeklyPlan: { ...state.weeklyPlan, goals: [...state.weeklyPlan.goals] }
           };
         });
         get().checkAchievements();
@@ -298,6 +264,14 @@ export const useAppStore = create<AppState>()(
             ...g,
             subGoals: g.subGoals.map(sg => sg.id === taskToDelete.originSubGoalId ? { ...sg, linkedTaskId: null } : sg)
           })) : state.goals,
+          // Unlink from weekly sub-goal
+          weeklyPlan: taskToDelete?.originWeeklySubGoalId ? {
+            ...state.weeklyPlan,
+            goals: state.weeklyPlan.goals.map(g => ({
+              ...g,
+              subGoals: g.subGoals.map(sg => sg.id === taskToDelete.originWeeklySubGoalId ? { ...sg, linkedTaskId: null } : sg)
+            }))
+          } : state.weeklyPlan,
         }));
       },
       
@@ -507,7 +481,7 @@ export const useAppStore = create<AppState>()(
         const subGoal = goal?.subGoals.find(sg => sg.id === subGoalId);
 
         if (subGoal && !subGoal.linkedTaskId) {
-            const newTask = addTask(subGoal.text, null, 'none', ['goal']);
+            const newTask = addTask(subGoal.text, goal.id, 'none', ['goal'], false, null);
             set(state => ({
                 goals: state.goals.map(g => 
                     g.id === goalId ? { ...g, subGoals: g.subGoals.map(sg => sg.id === subGoalId ? { ...sg, linkedTaskId: newTask.id } : sg) } : g
@@ -629,7 +603,7 @@ export const useAppStore = create<AppState>()(
         const subTask = project?.subTasks.find(st => st.id === subTaskId);
 
         if (subTask && !subTask.linkedTaskId) {
-            const newTask = addTask(subTask.text, null, 'none', ['project']);
+            const newTask = addTask(subTask.text, null, 'none', ['project'], false, null);
             set(state => ({
                 projects: state.projects.map(p => 
                     p.id === projectId ? { ...p, subTasks: p.subTasks.map(st => st.id === subTaskId ? { ...st, linkedTaskId: newTask.id } : st) } : p
@@ -704,7 +678,7 @@ export const useAppStore = create<AppState>()(
         const { unplannedTasks, addTask, isDayStarted } = get();
         const taskToPlan = unplannedTasks.find(t => t.id === id);
         if(taskToPlan) {
-            addTask(taskToPlan.text, null, 'none', [], isDayStarted);
+            addTask(taskToPlan.text, null, 'none', [], isDayStarted, null);
             set(state => ({ unplannedTasks: state.unplannedTasks.filter(t => t.id !== id) }));
         }
       },
@@ -802,6 +776,9 @@ export const useAppStore = create<AppState>()(
           performanceHistory: state.performanceHistory,
           streak: state.streak,
           unlockedAchievements: state.unlockedAchievements,
+          dayStartTime: state.dayStartTime,
+          idleTimeLogs: state.idleTimeLogs,
+          weeklyPlan: state.weeklyPlan,
         };
         const blob = new Blob([JSON.stringify(dataToExport, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -852,6 +829,9 @@ export const useAppStore = create<AppState>()(
               performanceHistory: data.performanceHistory || [],
               streak: data.streak || { current: 0, longest: 0, lastActivityDate: null },
               unlockedAchievements: data.unlockedAchievements || [],
+              dayStartTime: data.dayStartTime || null,
+              idleTimeLogs: data.idleTimeLogs || [],
+              weeklyPlan: data.weeklyPlan || { weekStartDate: '', goals: [] },
             });
           } else {
             throw new Error('Invalid data structure');
@@ -860,7 +840,152 @@ export const useAppStore = create<AppState>()(
           console.error('Failed to import data:', error);
           alert('Failed to import data. Please make sure the file is a valid export.');
         }
-      }
+      },
+
+      // Hourly Review Actions
+      logIdleTimeEntry: (entry) => {
+        const newEntry: IdleTimeEntry = {
+          ...entry,
+          id: uuidv4(),
+          timestamp: Date.now(),
+        };
+        set(state => ({
+          idleTimeLogs: [...state.idleTimeLogs, newEntry]
+        }));
+      },
+      
+      openIdleReviewModal: () => set({ isIdleReviewModalOpen: true }),
+      
+      closeIdleReviewModal: () => set({ isIdleReviewModalOpen: false }),
+
+      setIdleState: (idleState: IdleState) => set({ idleState }),
+
+      // Weekly Goal Actions
+      setWeeklyGoals: (goalTexts) => {
+        const newGoals: WeeklyGoal[] = goalTexts
+            .map(text => text.trim())
+            .filter(text => text !== '')
+            .map(text => ({ id: uuidv4(), text, completed: false, subGoals: [], dependsOn: [] }));
+        set(state => ({
+            weeklyPlan: { ...state.weeklyPlan, goals: newGoals }
+        }));
+      },
+      toggleWeeklyGoal: (id) => {
+        set(state => ({
+            weeklyPlan: {
+                ...state.weeklyPlan,
+                goals: state.weeklyPlan.goals.map(g => {
+                    if (g.id === id) {
+                        return { ...g, completed: !g.completed }
+                    }
+                    const updatedGoals = state.weeklyPlan.goals.map(goal => goal.dependsOn?.includes(id) ? { ...goal } : goal);
+                    return updatedGoals.find(ug => ug.id === g.id) || g;
+                })
+            }
+        }));
+        get().checkAchievements();
+      },
+      updateWeeklyGoal: (id, updates) => {
+        set(state => ({
+          weeklyPlan: {
+            ...state.weeklyPlan,
+            goals: state.weeklyPlan.goals.map(g => g.id === id ? { ...g, ...updates } : g)
+          }
+        }))
+      },
+      addWeeklySubGoal: (goalId, text) => {
+        const newSubGoal: WeeklySubGoal = { id: uuidv4(), text, completed: false, dependsOn: [], linkedTaskId: null };
+        set(state => ({
+          weeklyPlan: {
+            ...state.weeklyPlan,
+            goals: state.weeklyPlan.goals.map(g => g.id === goalId ? { ...g, subGoals: [...g.subGoals, newSubGoal], completed: false } : g)
+          }
+        }))
+      },
+      toggleWeeklySubGoal: (goalId, subGoalId) => {
+        set(state => {
+          const newGoals = state.weeklyPlan.goals.map(g => {
+            if (g.id === goalId) {
+              let toggledSubGoal: WeeklySubGoal | undefined;
+              const updatedSubGoals = g.subGoals.map(sg => {
+                  if (sg.id === subGoalId) {
+                      toggledSubGoal = { ...sg, completed: !sg.completed };
+                      return toggledSubGoal;
+                  }
+                  return sg;
+              });
+
+              if (toggledSubGoal?.linkedTaskId) {
+                  const linkedTask = state.plan.tasks.find(t => t.id === toggledSubGoal!.linkedTaskId);
+                  if (linkedTask && linkedTask.completed !== toggledSubGoal.completed) {
+                      state.plan.tasks = state.plan.tasks.map(t => t.id === linkedTask.id ? { ...t, completed: toggledSubGoal!.completed } : t);
+                  }
+              }
+
+              const dependencyUpdatedSubGoals = updatedSubGoals.map(sg => sg.dependsOn?.includes(subGoalId) ? { ...sg } : sg);
+              const allCompleted = dependencyUpdatedSubGoals.length > 0 && dependencyUpdatedSubGoals.every(sg => sg.completed);
+              return { ...g, subGoals: dependencyUpdatedSubGoals, completed: allCompleted };
+            }
+            return g;
+          });
+          return { weeklyPlan: { ...state.weeklyPlan, goals: newGoals }, plan: { ...state.plan, tasks: [...state.plan.tasks] }};
+        });
+        get().checkAchievements();
+      },
+      deleteWeeklySubGoal: (goalId, subGoalId) => {
+        const subGoalToDelete = get().weeklyPlan.goals.find(g => g.id === goalId)?.subGoals.find(sg => sg.id === subGoalId);
+        set(state => {
+          const newGoals = state.weeklyPlan.goals.map(g => {
+            if (g.id === goalId) {
+                const updatedSubGoals = g.subGoals.filter(sg => sg.id !== subGoalId);
+                const allCompleted = updatedSubGoals.length > 0 && updatedSubGoals.every(sg => sg.completed);
+                return { ...g, subGoals: updatedSubGoals, completed: allCompleted };
+            }
+            return g;
+          });
+          return {
+            weeklyPlan: { ...state.weeklyPlan, goals: newGoals },
+            plan: {
+              ...state.plan,
+              tasks: subGoalToDelete?.linkedTaskId ? state.plan.tasks.map(t =>
+                t.id === subGoalToDelete.linkedTaskId ? { ...t, originWeeklyGoalId: undefined, originWeeklySubGoalId: undefined } : t
+              ) : state.plan.tasks
+            }
+          };
+        });
+      },
+      updateWeeklySubGoal: (goalId, subGoalId, updates) => {
+        set(state => ({
+          weeklyPlan: {
+            ...state.weeklyPlan,
+            goals: state.weeklyPlan.goals.map(g => 
+              g.id === goalId ? { ...g, subGoals: g.subGoals.map(sg => sg.id === subGoalId ? { ...sg, ...updates } : sg) } : g
+            )
+          }
+        }));
+      },
+      sendWeeklySubGoalToPlan: (goalId, subGoalId) => {
+        const { weeklyPlan, addTask } = get();
+        const goal = weeklyPlan.goals.find(g => g.id === goalId);
+        const subGoal = goal?.subGoals.find(sg => sg.id === subGoalId);
+
+        if (subGoal && !subGoal.linkedTaskId) {
+          const newTask = addTask(subGoal.text, null, 'none', ['weekly_goal'], false, goal.id);
+          set(state => {
+            const newGoals = state.weeklyPlan.goals.map(g =>
+              g.id === goalId ? { ...g, subGoals: g.subGoals.map(sg => sg.id === subGoalId ? { ...sg, linkedTaskId: newTask.id } : sg) } : g
+            );
+            const newTasks = state.plan.tasks.map(t =>
+              t.id === newTask.id ? { ...t, originWeeklyGoalId: goalId, originWeeklySubGoalId: subGoalId } : t
+            );
+            return {
+              weeklyPlan: { ...state.weeklyPlan, goals: newGoals },
+              plan: { ...state.plan, tasks: newTasks }
+            };
+          });
+        }
+      },
+
     }),
     {
       name: STORAGE_KEYS.APP_STATE,

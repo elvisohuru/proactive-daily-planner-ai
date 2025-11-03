@@ -1,9 +1,8 @@
-
 import { Award, Star, Zap, Target as TargetIcon, Calendar, TrendingUp, Sparkles, ClipboardCheck, BookHeart, Gem, FolderCheck, Clock, Link as LinkIcon, BrainCircuit, Sunrise, Sunset } from 'lucide-react';
 import React from 'react';
 import { getTodayDateString } from './dateUtils';
-import { AchievementDefinition } from '../types';
-import { AppState } from '../store/useAppStore';
+// Fix: Import AppState from '../types' instead of '../store/useAppStore'
+import { AchievementDefinition, AppState } from '../types';
 import { parseISO } from 'date-fns';
 
 export const achievementsList: AchievementDefinition[] = [

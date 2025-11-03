@@ -99,6 +99,9 @@ const DataAndInsights: React.FC = () => {
                  <button onClick={()=>{exportDataAsCsv('tasks'); setIsMenuOpen(false);}} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
                   <FileSpreadsheet size={16} /> Tasks (CSV)
                 </button>
+                 <button onClick={()=>{exportDataAsCsv('weekly'); setIsMenuOpen(false);}} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
+                  <FileSpreadsheet size={16} /> Weekly Goals (CSV)
+                </button>
                  <button onClick={()=>{exportDataAsCsv('goals'); setIsMenuOpen(false);}} className="w-full text-left flex items-center gap-3 px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-md">
                   <FileSpreadsheet size={16} /> Goals (CSV)
                 </button>

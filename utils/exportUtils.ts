@@ -1,7 +1,6 @@
-
 import { format, parseISO } from 'date-fns';
-import { AppState } from '../store/useAppStore';
-import { Goal, Project } from '../types';
+// Fix: Import AppState from '../types' instead of '../store/useAppStore'
+import { AppState, Goal, Project, WeeklyGoal } from '../types';
 
 const getGoalsByCategory = (goals: Goal[], category: 'Short Term' | 'Long Term') => {
     return goals.filter(g => g.category === category && !g.archived);
@@ -10,6 +9,20 @@ const getGoalsByCategory = (goals: Goal[], category: 'Short Term' | 'Long Term')
 export const exportStateToMarkdown = (state: AppState): string => {
     const today = new Date();
     let md = `# Proactive Planner Export - ${format(today, 'MMMM d, yyyy')}\n\n`;
+
+    // Weekly Goals
+    if (state.weeklyPlan && state.weeklyPlan.goals.length > 0) {
+        md += `## This Week's Focus\n`;
+        state.weeklyPlan.goals.forEach(goal => {
+            md += `### [${goal.completed ? 'x' : ' '}] ${goal.text}\n`;
+            if (goal.subGoals.length > 0) {
+                goal.subGoals.forEach(subGoal => {
+                    md += `  - [${subGoal.completed ? 'x' : ' '}] ${subGoal.text}\n`;
+                });
+            }
+        });
+        md += '\n';
+    }
 
     // Plan for today
     md += `## Today's Plan (${state.plan.date})\n`;
@@ -120,14 +133,14 @@ const escapeCsvField = (field: any): string => {
     return stringField;
 };
 
-export const convertToCsv = (state: AppState, dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects'): string => {
+export const convertToCsv = (state: AppState, dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects' | 'weekly'): string => {
     let data: any[] = [];
     let headers: string[] = [];
 
     switch (dataType) {
         case 'tasks':
             data = state.plan.tasks;
-            headers = ['id', 'text', 'completed', 'goalId', 'priority', 'tags', 'dependsOn', 'originProjectId', 'originSubTaskId', 'originGoalId', 'originSubGoalId'];
+            headers = ['id', 'text', 'completed', 'goalId', 'weeklyGoalId', 'priority', 'tags', 'dependsOn', 'originProjectId', 'originSubTaskId', 'originGoalId', 'originSubGoalId', 'originWeeklyGoalId', 'originWeeklySubGoalId'];
             break;
         case 'goals':
             data = state.goals.flatMap(g => 
@@ -190,6 +203,30 @@ export const convertToCsv = (state: AppState, dataType: 'tasks' | 'goals' | 'rou
                 }]
             );
             headers = ['project_id', 'project_text', 'project_completed', 'project_deadline', 'project_archived', 'subtask_id', 'subtask_text', 'subtask_completed'];
+            break;
+        case 'weekly':
+             data = state.weeklyPlan.goals.flatMap(g => 
+                g.subGoals.length > 0 
+                ? g.subGoals.map(sg => ({
+                    week_start_date: state.weeklyPlan.weekStartDate,
+                    goal_id: g.id,
+                    goal_text: g.text,
+                    goal_completed: g.completed,
+                    subgoal_id: sg.id,
+                    subgoal_text: sg.text,
+                    subgoal_completed: sg.completed,
+                    }))
+                : [{
+                    week_start_date: state.weeklyPlan.weekStartDate,
+                    goal_id: g.id,
+                    goal_text: g.text,
+                    goal_completed: g.completed,
+                    subgoal_id: '',
+                    subgoal_text: '',
+                    subgoal_completed: null,
+                }]
+            );
+            headers = ['week_start_date', 'goal_id', 'goal_text', 'goal_completed', 'subgoal_id', 'subgoal_text', 'subgoal_completed'];
             break;
     }
 
