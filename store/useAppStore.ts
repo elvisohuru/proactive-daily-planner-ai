@@ -27,6 +27,7 @@ import {
   WeeklyPlan,
   WeeklyGoal,
   WeeklySubGoal,
+  AppView,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { differenceInCalendarDays, parseISO, startOfWeek, format } from 'date-fns';
@@ -66,6 +67,10 @@ export const useAppStore = create<AppState>()(
       idleTimeLogs: [],
       isIdleReviewModalOpen: false,
       idleState: null,
+
+      // Navigation State
+      activeView: 'dashboard',
+      isSidebarCollapsed: false,
 
       // Actions
       initialize: () => {
@@ -794,6 +799,7 @@ export const useAppStore = create<AppState>()(
         const markdown = exportStateToMarkdown(state);
         const blob = new Blob([markdown], { type: 'text/markdown' });
         const url = URL.createObjectURL(blob);
+        // Fix: Define the anchor element 'a' used to trigger the file download.
         const a = document.createElement('a');
         a.href = url;
         a.download = `proactive-planner-export-${getTodayDateString()}.md`;
@@ -985,6 +991,10 @@ export const useAppStore = create<AppState>()(
           });
         }
       },
+
+      // Navigation actions
+      setActiveView: (view: AppView) => set({ activeView: view }),
+      toggleSidebar: () => set(state => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
     }),
     {

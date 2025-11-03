@@ -1,18 +1,15 @@
-
 import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Award, BookOpen, BarChart3, Upload, FileJson, FileText, MoreVertical, FileSpreadsheet } from 'lucide-react';
+import { Award, BookOpen, Upload, FileJson, FileText, MoreVertical, FileSpreadsheet } from 'lucide-react';
 import Achievements from './Achievements';
 import PastReflections from './PastReflections';
-import AdvancedAnalytics from './AdvancedAnalytics';
 import { useAppStore } from '../store/useAppStore';
 
-type Tab = 'achievements' | 'reflections' | 'analytics';
+type Tab = 'achievements' | 'reflections';
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: 'achievements', label: 'Achievements', icon: <Award size={18} /> },
   { id: 'reflections', label: 'Reflections', icon: <BookOpen size={18} /> },
-  { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={18} /> },
 ];
 
 const DataAndInsights: React.FC = () => {
@@ -138,7 +135,6 @@ const DataAndInsights: React.FC = () => {
           >
             {activeTab === 'achievements' && <Achievements />}
             {activeTab === 'reflections' && <PastReflections />}
-            {activeTab === 'analytics' && <AdvancedAnalytics />}
           </motion.div>
         </AnimatePresence>
       </div>

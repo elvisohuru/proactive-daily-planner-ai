@@ -7,12 +7,10 @@ import { formatTime } from '../utils/dateUtils';
 const IdleCountdown: React.FC = () => {
   const idleState = useAppStore((state) => state.idleState);
 
-  const isVisible = idleState?.status === 'detecting' || idleState?.status === 'tracking_idle';
+  const isVisible = idleState?.status === 'tracking_idle';
   const seconds = idleState?.seconds ?? 0;
   
-  const text = idleState?.status === 'detecting' 
-    ? 'checking inactivity in' 
-    : 'inactive duration';
+  const text = 'inactive duration';
 
   return (
     <AnimatePresence>

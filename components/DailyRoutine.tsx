@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Trash2, Check, Repeat, GripVertical, Play, X, Link2, Info } from 'lucide-react';
@@ -166,10 +167,10 @@ const DailyRoutine: React.FC = () => {
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-              className={`flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg ${isBlocked ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
+              className={`flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg ${isBlocked || task.completed ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
             >
-              {!isBlocked && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
-              {isBlocked && <div className="w-[18px] flex-shrink-0" />}
+              {(!isBlocked && !task.completed) && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
+              {(isBlocked || task.completed) && <div className="w-[18px] flex-shrink-0" />}
               
               <button
                 onClick={() => !isBlocked && toggleRoutineTask(task.id)}
@@ -243,8 +244,8 @@ const DailyRoutine: React.FC = () => {
                 </form>
               ) : (
                 <button
-                  onClick={() => !isBlocked && handleStartTimerSetup(task.id)}
-                  disabled={isBlocked}
+                  onClick={() => handleStartTimerSetup(task.id)}
+                  disabled={isBlocked || task.completed}
                   className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-1"
                   aria-label="Start Timer for this routine task"
                 >
@@ -253,7 +254,7 @@ const DailyRoutine: React.FC = () => {
               )}
 
               <div className="relative">
-                <button onClick={() => !isBlocked && setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
                     <Link2 size={18} />
                 </button>
                 <AnimatePresence>
@@ -283,7 +284,8 @@ const DailyRoutine: React.FC = () => {
 
               <button
                 onClick={() => deleteRoutineTask(task.id)}
-                className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1"
+                disabled={task.completed}
+                className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 aria-label="Delete Routine Task"
               >
                 <Trash2 size={18} />

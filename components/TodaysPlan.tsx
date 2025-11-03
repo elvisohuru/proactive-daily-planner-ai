@@ -295,10 +295,10 @@ const TodaysPlan: React.FC = () => {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-                className={`relative flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border-l-4 ${priorityMap[task.priority].color} ${isBlocked ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
+                className={`relative flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg border-l-4 ${priorityMap[task.priority].color} ${isBlocked || task.completed ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
               >
-                {!isBlocked && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
-                {isBlocked && <div className="w-[18px] flex-shrink-0" />}
+                {(!isBlocked && !task.completed) && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
+                {(isBlocked || task.completed) && <div className="w-[18px] flex-shrink-0" />}
 
                 <button
                   onClick={() => !isBlocked && toggleTask(task.id)}
@@ -357,13 +357,13 @@ const TodaysPlan: React.FC = () => {
                       <button type="button" onClick={() => setTimerSetupTaskId(null)} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
                   </form>
                 ) : (
-                  <button onClick={() => !isBlocked && handleStartTimerSetup(task.id)} disabled={isBlocked} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                  <button onClick={() => handleStartTimerSetup(task.id)} disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
                     <Play size={18} />
                   </button>
                 )}
                 
                 <div className="relative">
-                    <button onClick={() => !isBlocked && setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                    <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
                         <Link2 size={18} />
                     </button>
                     <AnimatePresence>
@@ -391,7 +391,7 @@ const TodaysPlan: React.FC = () => {
                     </AnimatePresence>
                 </div>
                 
-                <button onClick={() => deleteTask(task.id)} className="text-slate-400 hover:text-red-500 p-1"><Trash2 size={18} /></button>
+                <button onClick={() => deleteTask(task.id)} disabled={task.completed} className="text-slate-400 hover:text-red-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed"><Trash2 size={18} /></button>
               </Reorder.Item>
             )
           })}

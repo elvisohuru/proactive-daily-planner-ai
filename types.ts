@@ -161,6 +161,8 @@ export type IdleState = {
   seconds: number;
 } | null;
 
+export type AppView = 'dashboard' | 'goals' | 'reports' | 'insights';
+
 // The main state structure
 export interface AppState {
   plan: TodaysPlan;
@@ -185,6 +187,10 @@ export interface AppState {
   idleTimeLogs: IdleTimeEntry[];
   isIdleReviewModalOpen: boolean;
   idleState: IdleState;
+
+  // New state for navigation
+  activeView: AppView;
+  isSidebarCollapsed: boolean;
 
   // Actions
   initialize: () => void;
@@ -257,4 +263,8 @@ export interface AppState {
   deleteWeeklySubGoal: (goalId: string, subGoalId: string) => void;
   updateWeeklySubGoal: (goalId: string, subGoalId: string, updates: Partial<Pick<WeeklySubGoal, 'dependsOn'>>) => void;
   sendWeeklySubGoalToPlan: (goalId: string, subGoalId: string) => void;
+
+  // Actions for navigation
+  setActiveView: (view: AppView) => void;
+  toggleSidebar: () => void;
 }

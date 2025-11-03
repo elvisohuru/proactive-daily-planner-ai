@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Trash2, Check, Target, Archive, RefreshCw, FolderKanban, Link2, Info, ArrowUpCircle, CircleCheck, ChevronDown, ChevronUp } from 'lucide-react';
@@ -43,7 +44,7 @@ const SubGoalItem: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, x: -10 }}
-            className={`flex items-center gap-2 pl-4 py-1 ${isBlocked ? 'opacity-60' : ''}`}
+            className={`flex items-center gap-2 pl-4 py-1 ${isBlocked || subGoal.completed ? 'opacity-60' : ''}`}
         >
             <button
                 onClick={() => !isBlocked && toggleSubGoal(goalId, subGoal.id)}
@@ -74,16 +75,16 @@ const SubGoalItem: React.FC<{
                     <CircleCheck size={14}/> <span>Planned</span>
                 </div>
             ) : (
-                <button onClick={() => sendSubGoalToPlan(goalId, subGoal.id)} className="text-slate-400 hover:text-calm-green-500 p-1" aria-label="Send to today's plan">
+                <button onClick={() => sendSubGoalToPlan(goalId, subGoal.id)} disabled={subGoal.completed} className="text-slate-400 hover:text-calm-green-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Send to today's plan">
                     <ArrowUpCircle size={14} />
                 </button>
             )}
 
             <div className="relative">
                 <button 
-                    onClick={() => !isBlocked && setEditingDepsFor(editingDepsFor === subGoal.id ? null : subGoal.id)} 
-                    disabled={isBlocked}
-                    className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed"
+                    onClick={() => setEditingDepsFor(editingDepsFor === subGoal.id ? null : subGoal.id)} 
+                    disabled={isBlocked || subGoal.completed}
+                    className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed disabled:opacity-50"
                      aria-label="Link dependencies"
                 >
                     <Link2 size={14} />
@@ -120,7 +121,7 @@ const SubGoalItem: React.FC<{
                 </AnimatePresence>
             </div>
 
-            <button onClick={() => deleteSubGoal(goalId, subGoal.id)} className="text-slate-400 hover:text-red-500 p-1" aria-label="Delete sub-goal"><Trash2 size={14} /></button>
+            <button onClick={() => deleteSubGoal(goalId, subGoal.id)} disabled={subGoal.completed} className="text-slate-400 hover:text-red-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Delete sub-goal"><Trash2 size={14} /></button>
         </motion.li>
     );
 };
@@ -161,7 +162,7 @@ const SubTaskItem: React.FC<{
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, x: -10 }}
-            className={`flex items-center gap-2 pl-4 py-1 ${isBlocked ? 'opacity-60' : ''}`}
+            className={`flex items-center gap-2 pl-4 py-1 ${isBlocked || subTask.completed ? 'opacity-60' : ''}`}
         >
             <button
                 onClick={() => !isBlocked && toggleSubTask(projectId, subTask.id)}
@@ -192,16 +193,16 @@ const SubTaskItem: React.FC<{
                     <CircleCheck size={14}/> <span>Planned</span>
                 </div>
             ) : (
-                <button onClick={() => sendSubTaskToPlan(projectId, subTask.id)} className="text-slate-400 hover:text-calm-green-500 p-1" aria-label="Send to today's plan">
+                <button onClick={() => sendSubTaskToPlan(projectId, subTask.id)} disabled={subTask.completed} className="text-slate-400 hover:text-calm-green-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Send to today's plan">
                     <ArrowUpCircle size={14} />
                 </button>
             )}
 
             <div className="relative">
                 <button 
-                    onClick={() => !isBlocked && setEditingDepsFor(editingDepsFor === subTask.id ? null : subTask.id)} 
-                    disabled={isBlocked}
-                    className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed"
+                    onClick={() => setEditingDepsFor(editingDepsFor === subTask.id ? null : subTask.id)} 
+                    disabled={isBlocked || subTask.completed}
+                    className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed disabled:opacity-50"
                      aria-label="Link dependencies"
                 >
                     <Link2 size={14} />
@@ -238,7 +239,7 @@ const SubTaskItem: React.FC<{
                 </AnimatePresence>
             </div>
 
-            <button onClick={() => deleteSubTask(projectId, subTask.id)} className="text-slate-400 hover:text-red-500 p-1" aria-label="Delete sub-task"><Trash2 size={14} /></button>
+            <button onClick={() => deleteSubTask(projectId, subTask.id)} disabled={subTask.completed} className="text-slate-400 hover:text-red-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Delete sub-task"><Trash2 size={14} /></button>
         </motion.li>
     );
 };
@@ -306,11 +307,11 @@ const ProjectItem: React.FC<{
                 <button onClick={() => onDelete(project.id)} className="text-slate-400 hover:text-red-500 p-1 flex-shrink-0" aria-label="Permanently delete project"><Trash2 size={16} /></button>
             </>
         ) : (
-            <button onClick={() => onArchive(project.id)} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0" aria-label="Archive project"><Archive size={16} /></button>
+            <button onClick={() => onArchive(project.id)} disabled={project.completed} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Archive project"><Archive size={16} /></button>
         )}
       </div>
       
-      {!project.archived && project.subTasks.length > 0 && (
+      {!project.archived && !project.completed && project.subTasks.length > 0 && (
         <div className="pl-8">
             <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -319,7 +320,7 @@ const ProjectItem: React.FC<{
         </div>
       )}
 
-      {!project.archived && (
+      {!project.archived && !project.completed && (
           <AnimatePresence initial={false}>
               {isExpanded && (
                   <motion.div
@@ -422,11 +423,11 @@ const GoalItem: React.FC<{
                 <button onClick={() => onDelete(goal.id)} className="text-slate-400 hover:text-red-500 p-1 flex-shrink-0" aria-label="Permanently delete goal"><Trash2 size={16} /></button>
             </>
         ) : (
-            <button onClick={() => onArchive(goal.id)} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0" aria-label="Archive goal"><Archive size={16} /></button>
+            <button onClick={() => onArchive(goal.id)} disabled={goal.completed} className="text-slate-400 hover:text-calm-blue-500 p-1 flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Archive goal"><Archive size={16} /></button>
         )}
       </div>
       
-      {!goal.archived && goal.subGoals.length > 0 && (
+      {!goal.archived && !goal.completed && goal.subGoals.length > 0 && (
         <div className="pl-8">
             <button onClick={() => setIsExpanded(!isExpanded)} className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200">
                 {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -435,7 +436,7 @@ const GoalItem: React.FC<{
         </div>
       )}
 
-      {!goal.archived && (
+      {!goal.archived && !goal.completed && (
            <AnimatePresence initial={false}>
               {isExpanded && (
                   <motion.div

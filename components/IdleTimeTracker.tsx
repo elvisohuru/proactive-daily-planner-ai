@@ -81,7 +81,7 @@ const IdleTimeTracker: React.FC = () => {
             if (remaining > 0) {
               setIdleState({ ...idleState, seconds: remaining });
             } else {
-              setIdleState({ status: 'tracking_idle', seconds: 0 });
+              setIdleState({ status: 'tracking_idle', seconds: IDLE_DETECTION_SECONDS });
             }
           }, 1000);
           break;
