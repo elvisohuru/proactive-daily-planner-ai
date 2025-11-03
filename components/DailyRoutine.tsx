@@ -13,7 +13,7 @@ const DailyRoutine: React.FC = () => {
   const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
   const [timerDuration, setTimerDuration] = useState('60');
   const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
-  const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer, focusOnElement, updateRoutineTask } = useAppStore();
+  const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer, focusOnElement, updateRoutineTask, isDayStarted } = useAppStore();
   
   const newRoutineInputRef = useRef<HTMLInputElement>(null);
 
@@ -87,55 +87,71 @@ const DailyRoutine: React.FC = () => {
       <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
         <Repeat size={20} /> Daily Routine
       </h2>
-      <form onSubmit={handleAddRoutine} className="flex flex-col gap-2 mb-4">
-         <div className="flex gap-2">
-            <input
-              id="new-routine-input"
-              ref={newRoutineInputRef}
-              type="text"
-              value={newRoutineText}
-              onChange={(e) => setNewRoutineText(e.target.value)}
-              placeholder="Add a new routine..."
-              className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
-            />
-            <button
-              type="submit"
-              className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center aspect-square transition"
-              aria-label="Add Routine Task"
+      <AnimatePresence>
+        {!isDayStarted && (
+          <motion.form
+            layout
+            onSubmit={handleAddRoutine}
+            className="flex flex-col gap-2 mb-4 overflow-hidden"
+            initial={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+             <div className="flex gap-2">
+                <input
+                  id="new-routine-input"
+                  ref={newRoutineInputRef}
+                  type="text"
+                  value={newRoutineText}
+                  onChange={(e) => setNewRoutineText(e.target.value)}
+                  placeholder="Add a new routine..."
+                  className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
+                />
+                <button
+                  type="submit"
+                  className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center aspect-square transition"
+                  aria-label="Add Routine Task"
+                >
+                  <Plus size={20} />
+                </button>
+            </div>
+             <select
+                value={newGoalId || ''}
+                onChange={(e) => setNewGoalId(e.target.value || null)}
+                className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
             >
-              <Plus size={20} />
-            </button>
+                <option value="">No associated goal</option>
+                {goals.filter(g => !g.completed && !g.archived).map(goal => (
+                <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
+                ))}
+            </select>
+            <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-2">
+              <span className="text-sm text-slate-600 dark:text-slate-300 px-2">Repeats on:</span>
+              <div className="flex gap-1">
+                {weekDays.map((day, index) => (
+                  <button
+                    type="button"
+                    key={index}
+                    onClick={() => toggleRecurringDay(index)}
+                    className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${
+                      recurringDays.includes(index)
+                        ? 'bg-calm-blue-500 text-white'
+                        : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </motion.form>
+        )}
+      </AnimatePresence>
+       {isDayStarted && routine.length > 0 && (
+         <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-2 mb-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
+            Routine is locked for today.
         </div>
-         <select
-            value={newGoalId || ''}
-            onChange={(e) => setNewGoalId(e.target.value || null)}
-            className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
-        >
-            <option value="">No associated goal</option>
-            {goals.filter(g => !g.completed && !g.archived).map(goal => (
-            <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
-            ))}
-        </select>
-        <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-2">
-          <span className="text-sm text-slate-600 dark:text-slate-300 px-2">Repeats on:</span>
-          <div className="flex gap-1">
-            {weekDays.map((day, index) => (
-              <button
-                type="button"
-                key={index}
-                onClick={() => toggleRecurringDay(index)}
-                className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${
-                  recurringDays.includes(index)
-                    ? 'bg-calm-blue-500 text-white'
-                    : 'bg-slate-200 dark:bg-slate-600 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-500'
-                }`}
-              >
-                {day}
-              </button>
-            ))}
-          </div>
-        </div>
-      </form>
+      )}
       <Reorder.Group as="ul" axis="y" values={routine} onReorder={reorderRoutine} className="space-y-2">
         {routine.map((task: RoutineTask) => {
           const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;

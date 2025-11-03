@@ -59,18 +59,24 @@ const ProductivityScore: React.FC = () => {
   const todayIndex = new Date().getDay();
   const todaysScheduledRoutine = routine.filter(r => r.recurringDays.length === 0 || r.recurringDays.includes(todayIndex));
 
-  const totalPlanned = plan.tasks.length;
+  // Base tasks for 100% score
+  const basePlannedTasks = plan.tasks.filter(task => !task.isBonus);
+  const totalPlannedForScore = basePlannedTasks.length;
+
+  // All completed tasks
   const completedPlanned = plan.tasks.filter((task) => task.completed).length;
 
   const totalRoutine = todaysScheduledRoutine.length;
   const completedRoutine = todaysScheduledRoutine.filter((task) => task.completed).length;
 
-  const totalTasks = totalPlanned + totalRoutine;
+  // Denominator for score calculation
+  const totalTasksForScore = totalPlannedForScore + totalRoutine;
+  // Numerator
   const completedTasks = completedPlanned + completedRoutine;
 
-  const score = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  const score = totalTasksForScore > 0 ? Math.round((completedTasks / totalTasksForScore) * 100) : 0;
   
-  const isComplete = score === 100 && totalTasks > 0;
+  const isComplete = score >= 100 && totalTasksForScore > 0;
   const prevIsComplete = usePrevious(isComplete);
 
   useEffect(() => {
@@ -83,11 +89,17 @@ const ProductivityScore: React.FC = () => {
   const continuousPieces = Array.from({ length: 80 }).map((_, i) => ({ id: i, delay: i * 0.1 }));
   
   const circumference = 2 * Math.PI * 54; // 2 * pi * radius
-  const strokeDashoffset = circumference - (score / 100) * circumference;
+  const scoreRatio = totalTasksForScore > 0 ? completedTasks / totalTasksForScore : 0;
+  const strokeDashoffset = circumference - Math.min(scoreRatio, 1) * circumference;
+
+
+  const totalTasks = plan.tasks.length + totalRoutine;
 
   const getMotivationalMessage = () => {
-    if (totalTasks === 0) return "Let's plan the day!";
-    if (isComplete) return `Amazing! You crushed all ${totalTasks} tasks today!`;
+    if (totalTasksForScore === 0) return "Let's plan the day!";
+    if (score >= 110) return `WOW! ${score}%! You are unstoppable!`;
+    if (score > 100) return `Bonus points! You're at ${score}%!`;
+    if (score === 100) return `Amazing! You crushed all ${totalTasksForScore} planned tasks!`;
     if (score >= 80) return "Incredible focus, almost there!";
     if (score >= 50) return "You're making great progress!";
     if (score > 0) return "Keep up the momentum!";

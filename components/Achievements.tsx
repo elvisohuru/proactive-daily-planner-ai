@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { achievementsList } from '../utils/achievements';
@@ -10,12 +11,17 @@ const Achievements: React.FC = () => {
   const allAchievements = achievementsList.map(ach => ({
     ...ach,
     unlocked: unlockedAchievements.includes(ach.id),
-  }));
+  })).sort((a, b) => {
+    // Sort unlocked achievements to the top
+    if (a.unlocked && !b.unlocked) return -1;
+    if (!a.unlocked && b.unlocked) return 1;
+    return 0;
+  });
 
   return (
     <div>
       <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Achievements</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-80 overflow-y-auto pr-2">
         {allAchievements.map((ach, index) => (
           <motion.div
             key={ach.id}

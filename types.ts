@@ -10,6 +10,11 @@ export type Task = {
   priority: TaskPriority;
   tags: string[];
   dependsOn?: string[];
+  isBonus?: boolean;
+  originProjectId?: string;
+  originSubTaskId?: string;
+  originGoalId?: string;
+  originSubGoalId?: string;
 };
 
 export type UnplannedTask = {
@@ -33,11 +38,37 @@ export type LogEntry = {
 
 export type GoalCategory = 'Short Term' | 'Long Term';
 
+export type SubGoal = {
+  id: string;
+  text: string;
+  completed: boolean;
+  dependsOn?: string[];
+  linkedTaskId?: string | null;
+};
+
 export type Goal = {
   id: string;
   text: string;
   category: GoalCategory;
   completed: boolean;
+  deadline: string | null;
+  archived: boolean;
+  subGoals: SubGoal[];
+};
+
+export type SubTask = {
+  id: string;
+  text: string;
+  completed: boolean;
+  dependsOn?: string[];
+  linkedTaskId?: string | null;
+};
+
+export type Project = {
+  id: string;
+  text: string;
+  completed: boolean;
+  subTasks: SubTask[];
   deadline: string | null;
   archived: boolean;
 };

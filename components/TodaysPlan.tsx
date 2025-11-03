@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Play, Check, X, GripVertical, Flag, Tag, Link2, Info } from 'lucide-react';
+import { Plus, Trash2, Play, Check, X, GripVertical, Flag, Tag, Link2, Info, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { Task, TaskPriority } from '../types';
 import { PREDEFINED_TAGS } from '../constants';
@@ -27,7 +27,8 @@ const TodaysPlan: React.FC = () => {
   
   const tasks = useAppStore((state) => state.plan.tasks);
   const goals = useAppStore((state) => state.goals);
-  const { addTask, deleteTask, toggleTask, startTimer, reorderTasks, updateTask, focusOnElement } = useAppStore();
+  const projects = useAppStore((state) => state.projects);
+  const { addTask, deleteTask, toggleTask, startTimer, reorderTasks, updateTask, focusOnElement, isDayStarted } = useAppStore();
 
   const newTaskInputRef = useRef<HTMLInputElement>(null);
   const tagContainerRef = useRef<HTMLDivElement>(null);
@@ -123,6 +124,18 @@ const TodaysPlan: React.FC = () => {
     return '';
   };
 
+  const getOriginText = (task: Task): string => {
+    if (task.originProjectId) {
+        const project = projects.find(p => p.id === task.originProjectId);
+        if (project) return `🔗 from Project: '${project.text}'`;
+    }
+    if (task.originGoalId) {
+        const goal = goals.find(g => g.id === task.originGoalId);
+        if (goal) return `🔗 from Goal: '${goal.text}'`;
+    }
+    return '';
+  };
+
   const handleConfirmStartTimer = (task: Task) => {
     const duration = parseInt(timerDuration, 10);
     if (!isNaN(duration) && duration > 0) {
@@ -134,103 +147,120 @@ const TodaysPlan: React.FC = () => {
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
       <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4">Planned Tasks for Today</h2>
-      <form onSubmit={handleAddTask} className="flex flex-col gap-2 mb-4">
-        <div className="flex gap-2">
-            <input
-              id="new-task-input"
-              ref={newTaskInputRef}
-              type="text"
-              value={newTaskText}
-              onChange={(e) => setNewTaskText(e.target.value)}
-              placeholder="Add a new task..."
-              className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
-            />
-            <button
-              type="submit"
-              className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center aspect-square transition"
-              aria-label="Add Task"
-            >
-              <Plus size={20} />
-            </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            <select
-                value={newGoalId || ''}
-                onChange={(e) => setNewGoalId(e.target.value || null)}
-                className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
-            >
-                <option value="">No associated goal</option>
-                {goals.filter(g => !g.completed && !g.archived).map(goal => (
-                <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
-                ))}
-            </select>
-            <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center">
-                <Flag size={14} className="text-slate-500" />
-                 <select
-                    value={newPriority}
-                    onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
-                    className="w-full bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0"
-                >
-                    <option value="none">No Priority</option>
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                </select>
-            </div>
-        </div>
-        <div className="relative" ref={tagContainerRef}>
-          <div 
-            onClick={() => setIsTagDropdownOpen(true)}
-            className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center flex-wrap cursor-text"
+      <AnimatePresence>
+        {!isDayStarted && (
+          <motion.form
+            layout
+            onSubmit={handleAddTask}
+            className="flex flex-col gap-2 mb-4 overflow-hidden"
+            initial={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
           >
-              <Tag size={14} className="text-slate-500" />
-              {newTags.map(tag => (
-                <span key={tag} className="flex items-center gap-1 bg-calm-blue-200 dark:bg-calm-blue-800 text-calm-blue-800 dark:text-calm-blue-100 rounded px-2 py-0.5">
-                  {tag}
-                  <button type="button" onClick={() => handleTagRemove(tag)} className="hover:text-red-500"><X size={12}/></button>
-                </span>
-              ))}
-              <input 
+            <div className="flex gap-2">
+                <input
+                  id="new-task-input"
+                  ref={newTaskInputRef}
                   type="text"
-                  value={tagInput}
-                  onChange={handleTagInputChange}
-                  onKeyDown={handleTagInputKeyDown}
-                  onFocus={() => setIsTagDropdownOpen(true)}
-                  placeholder="Add tags..."
-                  className="flex-grow bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0 p-0 h-auto"
-              />
-          </div>
-          <AnimatePresence>
-            {isTagDropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -5 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -5 }}
-                className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto"
+                  value={newTaskText}
+                  onChange={(e) => setNewTaskText(e.target.value)}
+                  placeholder="Add a new task..."
+                  className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
+                />
+                <button
+                  type="submit"
+                  className="bg-calm-blue-500 hover:bg-calm-blue-600 text-white font-semibold p-2 rounded-lg flex items-center justify-center aspect-square transition"
+                  aria-label="Add Task"
+                >
+                  <Plus size={20} />
+                </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <select
+                    value={newGoalId || ''}
+                    onChange={(e) => setNewGoalId(e.target.value || null)}
+                    className="w-full bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-600 dark:text-slate-300 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent"
+                >
+                    <option value="">No associated goal</option>
+                    {goals.filter(g => !g.completed && !g.archived).map(goal => (
+                    <option key={goal.id} value={goal.id}>🎯 {goal.text}</option>
+                    ))}
+                </select>
+                <div className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center">
+                    <Flag size={14} className="text-slate-500" />
+                     <select
+                        value={newPriority}
+                        onChange={(e) => setNewPriority(e.target.value as TaskPriority)}
+                        className="w-full bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0"
+                    >
+                        <option value="none">No Priority</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                    </select>
+                </div>
+            </div>
+            <div className="relative" ref={tagContainerRef}>
+              <div 
+                onClick={() => setIsTagDropdownOpen(true)}
+                className="flex gap-2 bg-slate-100 dark:bg-slate-700 rounded-lg px-3 py-2 text-sm items-center flex-wrap cursor-text"
               >
-                {tagInput.trim() && !newTags.includes(tagInput.trim()) && !PREDEFINED_TAGS.includes(tagInput.trim()) && (
-                  <button type="button" onClick={() => handleTagSelect(tagInput.trim())} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                    Create new tag: "{tagInput.trim()}"
-                  </button>
+                  <Tag size={14} className="text-slate-500" />
+                  {newTags.map(tag => (
+                    <span key={tag} className="flex items-center gap-1 bg-calm-blue-200 dark:bg-calm-blue-800 text-calm-blue-800 dark:text-calm-blue-100 rounded px-2 py-0.5">
+                      {tag}
+                      <button type="button" onClick={() => handleTagRemove(tag)} className="hover:text-red-500"><X size={12}/></button>
+                    </span>
+                  ))}
+                  <input 
+                      type="text"
+                      value={tagInput}
+                      onChange={handleTagInputChange}
+                      onKeyDown={handleTagInputKeyDown}
+                      onFocus={() => setIsTagDropdownOpen(true)}
+                      placeholder="Add tags..."
+                      className="flex-grow bg-transparent text-slate-600 dark:text-slate-300 border-none focus:ring-0 p-0 h-auto"
+                  />
+              </div>
+              <AnimatePresence>
+                {isTagDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    className="absolute z-10 top-full mt-1 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-lg shadow-lg p-2 max-h-48 overflow-y-auto"
+                  >
+                    {tagInput.trim() && !newTags.includes(tagInput.trim()) && !PREDEFINED_TAGS.includes(tagInput.trim()) && (
+                      <button type="button" onClick={() => handleTagSelect(tagInput.trim())} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                        Create new tag: "{tagInput.trim()}"
+                      </button>
+                    )}
+                    {filteredPredefinedTags.map(tag => (
+                       <button type="button" key={tag} onClick={() => handleTagSelect(tag)} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
+                        {tag}
+                      </button>
+                    ))}
+                    {filteredPredefinedTags.length === 0 && !tagInput.trim() && (
+                      <div className="p-2 text-xs text-slate-400">All tags added. Type to create new.</div>
+                    )}
+                  </motion.div>
                 )}
-                {filteredPredefinedTags.map(tag => (
-                   <button type="button" key={tag} onClick={() => handleTagSelect(tag)} className="w-full text-left text-sm p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-700">
-                    {tag}
-                  </button>
-                ))}
-                {filteredPredefinedTags.length === 0 && !tagInput.trim() && (
-                  <div className="p-2 text-xs text-slate-400">All tags added. Type to create new.</div>
-                )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+              </AnimatePresence>
+            </div>
+          </motion.form>
+        )}
+      </AnimatePresence>
+      {isDayStarted && (
+        <div className="text-center text-sm text-slate-500 dark:text-slate-400 py-2 mb-4 bg-slate-100 dark:bg-slate-700/50 rounded-lg">
+            Day started. Add new tasks via the Unplanned Tasks inbox.
         </div>
-      </form>
+      )}
       <Reorder.Group as="ul" axis="y" values={tasks} onReorder={reorderTasks} className="space-y-2">
         <AnimatePresence>
           {tasks.map((task) => {
             const linkedGoal = task.goalId ? goals.find(g => g.id === task.goalId) : null;
             const isBlocked = task.dependsOn?.some(depId => !tasks.find(t => t.id === depId)?.completed) ?? false;
+            const originText = getOriginText(task);
 
             return (
               <Reorder.Item
@@ -264,7 +294,7 @@ const TodaysPlan: React.FC = () => {
                   </AnimatePresence>
                 </button>
                 <div className={`flex-grow text-slate-700 dark:text-slate-300 ${task.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''}`}>
-                  <p>{task.text}</p>
+                  <p className="flex items-center gap-1.5">{task.text} {task.isBonus && <Sparkles size={14} className="text-yellow-400" title="Bonus Task" />}</p>
                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       {isBlocked && (
                         <div className="group relative flex items-center">
@@ -276,6 +306,11 @@ const TodaysPlan: React.FC = () => {
                             </div>
                         </div>
                       )}
+                       {originText && (
+                         <span className="text-xs italic text-slate-400 dark:text-slate-500">
+                          {originText}
+                        </span>
+                       )}
                       {linkedGoal && (
                         <span className="text-xs bg-calm-blue-100 text-calm-blue-800 dark:bg-calm-blue-900 dark:text-calm-blue-200 px-2 py-0.5 rounded-full">
                           🎯 {linkedGoal.text}

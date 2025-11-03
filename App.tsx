@@ -14,6 +14,7 @@ import DataAndInsights from './components/DataAndInsights';
 import ProductivityStreak from './components/ProductivityStreak';
 import CommandPalette from './components/CommandPalette';
 import ShutdownRoutine from './components/ShutdownRoutine';
+import StartDay from './components/StartDay';
 
 function App() {
   const { theme, initialize, setCommandPaletteOpen } = useAppStore();
@@ -56,6 +57,7 @@ function App() {
               <ProductivityScore />
               <ProductivityStreak />
             </div>
+            <StartDay />
             <DailyRoutine />
             <TodaysPlan />
           </div>

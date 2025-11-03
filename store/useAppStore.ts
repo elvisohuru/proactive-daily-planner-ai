@@ -18,6 +18,9 @@ import {
   UnplannedTask,
   Streak,
   ShutdownState,
+  Project,
+  SubTask,
+  SubGoal,
 } from '../types';
 import { STORAGE_KEYS } from '../constants';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
@@ -29,6 +32,7 @@ export interface AppState {
   plan: TodaysPlan;
   logs: LogEntry[];
   goals: Goal[];
+  projects: Project[];
   routine: RoutineTask[];
   unplannedTasks: UnplannedTask[];
   activeTask: ActiveTask | null;
@@ -39,11 +43,13 @@ export interface AppState {
   theme: Theme;
   shutdownState: ShutdownState;
   isCommandPaletteOpen: boolean;
+  isDayStarted: boolean;
   focusOnElement: string | null;
 
   // Actions
   initialize: () => void;
-  addTask: (text: string, goalId: string | null, priority: TaskPriority, tags: string[]) => void;
+  startDay: () => void;
+  addTask: (text: string, goalId: string | null, priority: TaskPriority, tags: string[], isBonus?: boolean) => Task;
   toggleTask: (id: string) => void;
   deleteTask: (id: string) => void;
   updateTask: (id: string, updates: Partial<Pick<Task, 'priority' | 'tags' | 'dependsOn'>>) => void;
@@ -60,6 +66,20 @@ export interface AppState {
   archiveGoal: (id: string) => void;
   restoreGoal: (id: string) => void;
   permanentlyDeleteGoal: (id: string) => void;
+  addSubGoal: (goalId: string, text: string) => void;
+  toggleSubGoal: (goalId: string, subGoalId: string) => void;
+  deleteSubGoal: (goalId: string, subGoalId: string) => void;
+  updateSubGoal: (goalId: string, subGoalId: string, updates: Partial<Pick<SubGoal, 'dependsOn'>>) => void;
+  sendSubGoalToPlan: (goalId: string, subGoalId: string) => void;
+  addProject: (text: string, deadline: string | null) => void;
+  archiveProject: (id: string) => void;
+  restoreProject: (id: string) => void;
+  permanentlyDeleteProject: (id: string) => void;
+  addSubTask: (projectId: string, text: string) => void;
+  toggleSubTask: (projectId: string, subTaskId: string) => void;
+  deleteSubTask: (projectId: string, subTaskId: string) => void;
+  updateSubTask: (projectId: string, subTaskId: string, updates: Partial<Pick<SubTask, 'dependsOn'>>) => void;
+  sendSubTaskToPlan: (projectId: string, subTaskId: string) => void;
   addRoutineTask: (text: string, goalId: string | null, recurringDays: number[]) => void;
   toggleRoutineTask: (id: string, skipLog?: boolean) => void;
   updateRoutineTask: (id: string, updates: Partial<Pick<RoutineTask, 'dependsOn'>>) => void;
@@ -79,7 +99,7 @@ export interface AppState {
   checkAchievements: () => void;
   exportDataAsJson: () => void;
   exportDataAsMarkdown: () => void;
-  exportDataAsCsv: (dataType: 'tasks' | 'goals' | 'routine' | 'logs') => void;
+  exportDataAsCsv: (dataType: 'tasks' | 'goals' | 'routine' | 'logs' | 'projects') => void;
   importData: (jsonString: string) => void;
 }
 
@@ -95,6 +115,7 @@ export const useAppStore = create<AppState>()(
       plan: { date: getTodayDateString(), tasks: [] },
       logs: [],
       goals: [],
+      projects: [],
       routine: [],
       unplannedTasks: [],
       activeTask: null,
@@ -105,6 +126,7 @@ export const useAppStore = create<AppState>()(
       theme: 'dark',
       shutdownState: { isOpen: false, step: null, unfinishedTasks: [] },
       isCommandPaletteOpen: false,
+      isDayStarted: false,
       focusOnElement: null,
 
       // Actions
@@ -163,21 +185,29 @@ export const useAppStore = create<AppState>()(
           }
           set({ streak: newStreak });
           
+          // Check achievements before resetting daily state
+          checkAchievements();
+
           set({
             plan: { date: todayString, tasks: [] },
             activeTask: null,
-            routine: get().routine.map(task => ({ ...task, completed: false }))
+            routine: get().routine.map(task => ({ ...task, completed: false })),
+            isDayStarted: false,
           });
-          checkAchievements();
         }
       },
 
-      addTask: (text, goalId, priority, tags) => {
-        const newTask: Task = { id: uuidv4(), text, completed: false, goalId, priority, tags, dependsOn: [] };
+      startDay: () => {
+        set({ isDayStarted: true });
+      },
+
+      addTask: (text, goalId, priority, tags, isBonus = false) => {
+        const newTask: Task = { id: uuidv4(), text, completed: false, goalId, priority, tags, dependsOn: [], isBonus };
         set((state) => ({
           plan: { ...state.plan, tasks: [...state.plan.tasks, newTask] },
         }));
         get().checkAchievements();
+        return newTask;
       },
       
       updateTask: (id, updates) => {
@@ -189,38 +219,85 @@ export const useAppStore = create<AppState>()(
             ),
           },
         }));
+        get().checkAchievements();
       },
 
       toggleTask: (id) => {
         set((state) => {
-          // Create a new array with the toggled task updated.
-          const updatedTasks = state.plan.tasks.map((task) =>
-            task.id === id ? { ...task, completed: !task.completed } : task
-          );
+          let toggledTask: Task | undefined;
+          
+          const updatedTasks = state.plan.tasks.map((task) => {
+            if (task.id === id) {
+              toggledTask = { ...task, completed: !task.completed };
+              return toggledTask;
+            }
+            return task;
+          });
+
+          if (toggledTask) {
+              const isNowCompleted = toggledTask.completed;
+              // Sync with Project Sub-task
+              if (toggledTask.originProjectId && toggledTask.originSubTaskId) {
+                  const { originProjectId, originSubTaskId } = toggledTask;
+                  state.projects = state.projects.map(p => {
+                      if (p.id === originProjectId) {
+                          const updatedSubTasks = p.subTasks.map(st => 
+                              st.id === originSubTaskId ? { ...st, completed: isNowCompleted } : st
+                          );
+                          const allCompleted = updatedSubTasks.length > 0 && updatedSubTasks.every(st => st.completed);
+                          return { ...p, subTasks: updatedSubTasks, completed: allCompleted };
+                      }
+                      return p;
+                  });
+              }
+              // Sync with Goal Sub-goal
+              if (toggledTask.originGoalId && toggledTask.originSubGoalId) {
+                  const { originGoalId, originSubGoalId } = toggledTask;
+                  state.goals = state.goals.map(g => {
+                      if (g.id === originGoalId) {
+                          const updatedSubGoals = g.subGoals.map(sg => 
+                              sg.id === originSubGoalId ? { ...sg, completed: isNowCompleted } : sg
+                          );
+                          const allCompleted = updatedSubGoals.length > 0 && updatedSubGoals.every(sg => sg.completed);
+                          return { ...g, subGoals: updatedSubGoals, completed: allCompleted };
+                      }
+                      return g;
+                  });
+              }
+          }
       
-          // Create a new reference for any task that depends on the toggled task.
-          // This forces memoized components (like Reorder.Item) to re-render and
-          // update their "blocked" status.
+          // Dependency re-render logic
           const finalTasks = updatedTasks.map(task => {
             if (task.dependsOn?.includes(id)) {
-              return { ...task }; // Create a new object reference
+              return { ...task };
             }
             return task;
           });
       
           return {
-            plan: {
-              ...state.plan,
-              tasks: finalTasks,
-            },
+            plan: { ...state.plan, tasks: finalTasks },
+            projects: [...state.projects],
+            goals: [...state.goals],
           };
         });
         get().checkAchievements();
       },
 
       deleteTask: (id) => {
+        const taskToDelete = get().plan.tasks.find(t => t.id === id);
+
         set((state) => ({
           plan: { ...state.plan, tasks: state.plan.tasks.filter((task) => task.id !== id) },
+          // Unlink from sub-task
+          projects: taskToDelete?.originSubTaskId ? state.projects.map(p => ({
+            ...p,
+            subTasks: p.subTasks.map(st => st.id === taskToDelete.originSubTaskId ? { ...st, linkedTaskId: null } : st)
+          })) : state.projects,
+          // Unlink from sub-goal
+          goals: taskToDelete?.originSubGoalId ? state.goals.map(g => ({
+            ...g,
+            subGoals: g.subGoals.map(sg => sg.id === taskToDelete.originSubGoalId ? { ...sg, linkedTaskId: null } : sg)
+          })) : state.goals,
         }));
       },
       
@@ -321,6 +398,7 @@ export const useAppStore = create<AppState>()(
           deadline,
           completed: false,
           archived: false,
+          subGoals: [],
         };
         set((state) => ({ goals: [...state.goals, newGoal] }));
       },
@@ -350,6 +428,218 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           goals: state.goals.filter((goal) => goal.id !== id),
         }));
+      },
+
+      addSubGoal: (goalId, text) => {
+        const newSubGoal: SubGoal = { id: uuidv4(), text, completed: false, dependsOn: [], linkedTaskId: null };
+        set(state => ({
+            goals: state.goals.map(g => 
+                g.id === goalId ? { ...g, subGoals: [...g.subGoals, newSubGoal], completed: false } : g
+            )
+        }));
+      },
+
+      toggleSubGoal: (goalId, subGoalId) => {
+        set(state => ({
+            goals: state.goals.map(g => {
+                if (g.id === goalId) {
+                    let toggledSubGoal: SubGoal | undefined;
+                    const updatedSubGoals = g.subGoals.map(sg => {
+                        if (sg.id === subGoalId) {
+                            toggledSubGoal = { ...sg, completed: !sg.completed };
+                            return toggledSubGoal;
+                        }
+                        return sg;
+                    });
+                    
+                    // Sync with linked task if it exists
+                    if (toggledSubGoal?.linkedTaskId) {
+                        const linkedTask = state.plan.tasks.find(t => t.id === toggledSubGoal!.linkedTaskId);
+                        if (linkedTask && linkedTask.completed !== toggledSubGoal.completed) {
+                            state.plan.tasks = state.plan.tasks.map(t => t.id === linkedTask.id ? { ...t, completed: toggledSubGoal!.completed } : t);
+                        }
+                    }
+
+                    const dependencyUpdatedSubGoals = updatedSubGoals.map(sg => sg.dependsOn?.includes(subGoalId) ? { ...sg } : sg);
+                    const allCompleted = dependencyUpdatedSubGoals.length > 0 && dependencyUpdatedSubGoals.every(sg => sg.completed);
+                    return { ...g, subGoals: dependencyUpdatedSubGoals, completed: allCompleted };
+                }
+                return g;
+            })
+        }));
+        get().checkAchievements();
+      },
+
+      deleteSubGoal: (goalId, subGoalId) => {
+        const subGoalToDelete = get().goals.find(g => g.id === goalId)?.subGoals.find(sg => sg.id === subGoalId);
+        set(state => ({
+            goals: state.goals.map(g => {
+                if (g.id === goalId) {
+                    const updatedSubGoals = g.subGoals.filter(sg => sg.id !== subGoalId);
+                    const allCompleted = updatedSubGoals.length > 0 && updatedSubGoals.every(sg => sg.completed);
+                    return { ...g, subGoals: updatedSubGoals, completed: allCompleted };
+                }
+                return g;
+            }),
+            plan: {
+                ...state.plan,
+                tasks: subGoalToDelete?.linkedTaskId ? state.plan.tasks.map(t => 
+                    t.id === subGoalToDelete.linkedTaskId 
+                    ? { ...t, originGoalId: undefined, originSubGoalId: undefined } 
+                    : t
+                ) : state.plan.tasks
+            }
+        }));
+      },
+
+      updateSubGoal: (goalId, subGoalId, updates) => {
+        set(state => ({
+            goals: state.goals.map(g => 
+                g.id === goalId ? { ...g, subGoals: g.subGoals.map(sg => sg.id === subGoalId ? { ...sg, ...updates } : sg) } : g
+            )
+        }));
+        get().checkAchievements();
+      },
+      
+      sendSubGoalToPlan: (goalId, subGoalId) => {
+        const { goals, addTask } = get();
+        const goal = goals.find(g => g.id === goalId);
+        const subGoal = goal?.subGoals.find(sg => sg.id === subGoalId);
+
+        if (subGoal && !subGoal.linkedTaskId) {
+            const newTask = addTask(subGoal.text, null, 'none', ['goal']);
+            set(state => ({
+                goals: state.goals.map(g => 
+                    g.id === goalId ? { ...g, subGoals: g.subGoals.map(sg => sg.id === subGoalId ? { ...sg, linkedTaskId: newTask.id } : sg) } : g
+                ),
+                plan: {
+                    ...state.plan,
+                    tasks: state.plan.tasks.map(t => t.id === newTask.id ? { ...t, originGoalId: goalId, originSubGoalId: subGoalId } : t)
+                }
+            }));
+        }
+      },
+
+      addProject: (text, deadline) => {
+        const newProject: Project = { id: uuidv4(), text, completed: false, deadline, archived: false, subTasks: [] };
+        set(state => ({ projects: [...state.projects, newProject] }));
+      },
+
+      archiveProject: (id) => {
+        set(state => ({
+          projects: state.projects.map(p => p.id === id ? { ...p, archived: true } : p)
+        }));
+      },
+
+      restoreProject: (id) => {
+        set(state => ({
+          projects: state.projects.map(p => p.id === id ? { ...p, archived: false } : p)
+        }));
+      },
+
+      permanentlyDeleteProject: (id) => {
+        set(state => ({ projects: state.projects.filter(p => p.id !== id) }));
+      },
+
+      addSubTask: (projectId, text) => {
+        const newSubTask: SubTask = { id: uuidv4(), text, completed: false, dependsOn: [], linkedTaskId: null };
+        set(state => ({
+          projects: state.projects.map(p => {
+            if (p.id === projectId) {
+              return { ...p, subTasks: [...p.subTasks, newSubTask], completed: false };
+            }
+            return p;
+          })
+        }));
+      },
+
+      toggleSubTask: (projectId, subTaskId) => {
+        set(state => ({
+          projects: state.projects.map(p => {
+            if (p.id === projectId) {
+              let toggledSubTask: SubTask | undefined;
+              const updatedSubTasks = p.subTasks.map(st => {
+                  if (st.id === subTaskId) {
+                      toggledSubTask = { ...st, completed: !st.completed };
+                      return toggledSubTask;
+                  }
+                  return st;
+              });
+
+              // Sync with linked task if it exists
+              if (toggledSubTask?.linkedTaskId) {
+                  const linkedTask = state.plan.tasks.find(t => t.id === toggledSubTask!.linkedTaskId);
+                  if (linkedTask && linkedTask.completed !== toggledSubTask.completed) {
+                      state.plan.tasks = state.plan.tasks.map(t => t.id === linkedTask.id ? { ...t, completed: toggledSubTask!.completed } : t);
+                  }
+              }
+
+              const dependencyUpdatedSubTasks = updatedSubTasks.map(subtask => subtask.dependsOn?.includes(subTaskId) ? { ...subtask } : subtask);
+              const allCompleted = dependencyUpdatedSubTasks.length > 0 && dependencyUpdatedSubTasks.every(st => st.completed);
+              return { ...p, subTasks: dependencyUpdatedSubTasks, completed: allCompleted };
+            }
+            return p;
+          })
+        }));
+        get().checkAchievements();
+      },
+
+      deleteSubTask: (projectId, subTaskId) => {
+        const subTaskToDelete = get().projects.find(p => p.id === projectId)?.subTasks.find(st => st.id === subTaskId);
+        set(state => ({
+            projects: state.projects.map(p => {
+                if (p.id === projectId) {
+                    const updatedSubTasks = p.subTasks.filter(st => st.id !== subTaskId);
+                    const allCompleted = updatedSubTasks.length > 0 && updatedSubTasks.every(st => st.completed);
+                    return { ...p, subTasks: updatedSubTasks, completed: allCompleted };
+                }
+                return p;
+            }),
+            plan: {
+                ...state.plan,
+                tasks: subTaskToDelete?.linkedTaskId ? state.plan.tasks.map(t => 
+                    t.id === subTaskToDelete.linkedTaskId 
+                    ? { ...t, originProjectId: undefined, originSubTaskId: undefined } 
+                    : t
+                ) : state.plan.tasks
+            }
+        }));
+      },
+
+      updateSubTask: (projectId, subTaskId, updates) => {
+        set(state => ({
+            projects: state.projects.map(p => {
+                if (p.id === projectId) {
+                    return {
+                        ...p,
+                        subTasks: p.subTasks.map(st => 
+                            st.id === subTaskId ? { ...st, ...updates } : st
+                        )
+                    };
+                }
+                return p;
+            })
+        }));
+        get().checkAchievements();
+      },
+
+      sendSubTaskToPlan: (projectId, subTaskId) => {
+        const { projects, addTask } = get();
+        const project = projects.find(p => p.id === projectId);
+        const subTask = project?.subTasks.find(st => st.id === subTaskId);
+
+        if (subTask && !subTask.linkedTaskId) {
+            const newTask = addTask(subTask.text, null, 'none', ['project']);
+            set(state => ({
+                projects: state.projects.map(p => 
+                    p.id === projectId ? { ...p, subTasks: p.subTasks.map(st => st.id === subTaskId ? { ...st, linkedTaskId: newTask.id } : st) } : p
+                ),
+                plan: {
+                    ...state.plan,
+                    tasks: state.plan.tasks.map(t => t.id === newTask.id ? { ...t, originProjectId: projectId, originSubTaskId: subTaskId } : t)
+                }
+            }));
+        }
       },
 
       addRoutineTask: (text, goalId, recurringDays) => {
@@ -392,6 +682,7 @@ export const useAppStore = create<AppState>()(
             task.id === id ? { ...task, ...updates } : task
           ),
         }));
+        get().checkAchievements();
       },
 
       deleteRoutineTask: (id) => {
@@ -410,10 +701,10 @@ export const useAppStore = create<AppState>()(
       },
       
       planUnplannedTask: (id) => {
-        const { unplannedTasks, addTask } = get();
+        const { unplannedTasks, addTask, isDayStarted } = get();
         const taskToPlan = unplannedTasks.find(t => t.id === id);
         if(taskToPlan) {
-            addTask(taskToPlan.text, null, 'none', []);
+            addTask(taskToPlan.text, null, 'none', [], isDayStarted);
             set(state => ({ unplannedTasks: state.unplannedTasks.filter(t => t.id !== id) }));
         }
       },
@@ -431,6 +722,7 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           reflections: [newReflection, ...state.reflections.filter(r => r.date !== newReflection.date)]
         }));
+        get().checkAchievements();
         get().closeShutdownRoutine();
       },
       
@@ -503,6 +795,7 @@ export const useAppStore = create<AppState>()(
           plan: state.plan,
           logs: state.logs,
           goals: state.goals,
+          projects: state.projects,
           routine: state.routine,
           unplannedTasks: state.unplannedTasks,
           reflections: state.reflections,
@@ -552,6 +845,7 @@ export const useAppStore = create<AppState>()(
               plan: data.plan,
               logs: data.logs,
               goals: data.goals,
+              projects: data.projects || [],
               routine: data.routine || [],
               unplannedTasks: data.unplannedTasks || [],
               reflections: data.reflections || [],
