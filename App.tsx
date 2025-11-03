@@ -41,7 +41,6 @@ const DataAndInsights = lazy(() => import('./components/DataAndInsights'));
 const dashboardComponentMap: { [key: string]: { component: React.FC, title: string, span: string } } = {
   ProductivityScore: { component: ProductivityScore, title: 'Productivity Score', span: 'lg:col-span-3' },
   WeeklyGoals: { component: WeeklyGoals, title: "This Week's Focus", span: 'lg:col-span-3' },
-  WeeklyReviewTrigger: { component: WeeklyReviewTrigger, title: 'Weekly Review', span: 'lg:col-span-3' },
   StartDay: { component: StartDay, title: 'Start Day', span: 'lg:col-span-3' },
   DailyRoutine: { component: DailyRoutine, title: 'Daily Routine', span: 'lg:col-span-3' },
   TodaysPlan: { component: TodaysPlan, title: 'Planned Tasks', span: 'lg:col-span-3' },
@@ -107,10 +106,11 @@ const DashboardView = () => {
 
 
 const ReportsView = () => {
-  const { performanceHistory, logs } = useAppStore();
+  const { performanceHistory, logs, lastWeekPlan } = useAppStore();
   const hasData = performanceHistory.length > 0 || logs.length > 0;
+  const isReviewAvailable = !!lastWeekPlan && lastWeekPlan.goals.length > 0;
 
-  if (!hasData) {
+  if (!hasData && !isReviewAvailable) {
     return (
       <div className="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-lg text-center flex flex-col items-center justify-center h-full">
         <BarChart3 size={48} className="mx-auto text-slate-400 mb-4" />
@@ -124,11 +124,16 @@ const ReportsView = () => {
   
   return (
     <div className="space-y-6">
-      <PerformanceHistory />
-      <TimeAllocationByTag />
-      <WastedTime />
-      <TimeLog />
-      <AdvancedAnalytics />
+      <WeeklyReviewTrigger />
+      {hasData && (
+        <>
+          <PerformanceHistory />
+          <TimeAllocationByTag />
+          <WastedTime />
+          <TimeLog />
+          <AdvancedAnalytics />
+        </>
+      )}
     </div>
   );
 };

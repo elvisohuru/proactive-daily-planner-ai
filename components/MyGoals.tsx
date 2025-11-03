@@ -380,7 +380,7 @@ const ProjectItem: React.FC<{
                                       onChange={e => setNewSubTaskText(e.target.value)}
                                       onBlur={() => { if(!newSubTaskText.trim()) setIsAddSubTaskOpen(false); }}
                                       placeholder="Add a sub-task..."
-                                      className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                                      className="flex-grow min-w-0 bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
                                   />
                                   <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-task"><Plus size={18}/></button>
                               </motion.form>
@@ -532,7 +532,7 @@ const GoalItem: React.FC<{
                                       onChange={e => setNewSubGoalText(e.target.value)}
                                       onBlur={() => { if(!newSubGoalText.trim()) setIsAddSubGoalOpen(false); }}
                                       placeholder="Add a sub-goal..."
-                                      className="flex-grow bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
+                                      className="flex-grow min-w-0 bg-slate-100 dark:bg-slate-600 rounded-md px-2 py-1 text-sm border-transparent focus:ring-1 focus:ring-calm-blue-500"
                                   />
                                   <button type="submit" className="text-calm-blue-500 hover:text-calm-blue-600 p-1" aria-label="Add sub-goal"><Plus size={18}/></button>
                               </motion.form>

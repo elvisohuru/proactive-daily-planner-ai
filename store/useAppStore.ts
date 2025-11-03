@@ -47,7 +47,6 @@ const getTodaysScheduledRoutineTasks = (routine: RoutineTask[], date: Date): Rou
 export const defaultDashboardLayout: DashboardLayout = [
   'ProductivityScore',
   'ProductivityStreak',
-  'WeeklyReviewTrigger',
   'StartDay',
   'WeeklyGoals',
   'DailyRoutine',

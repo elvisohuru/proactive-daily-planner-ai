@@ -185,7 +185,7 @@ const TodaysPlan: React.FC = () => {
                 value={newTaskText}
                 onChange={(e) => setNewTaskText(e.target.value)}
                 placeholder={isDayStarted ? "Capture an idea for the inbox..." : "Add a new task..."}
-                className="flex-grow bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
+                className="flex-grow min-w-0 bg-slate-100 dark:bg-slate-700 border-transparent focus:ring-2 focus:ring-calm-blue-500 focus:border-transparent rounded-lg px-4 py-2 text-slate-800 dark:text-slate-200 transition"
               />
               <button
                 type="submit"
@@ -385,14 +385,14 @@ const TodaysPlan: React.FC = () => {
                      )}
                    </div>
                 </div>
-                
-                {timerSetupTaskId === task.id ? (
+                <div className="flex-shrink-0 flex items-center gap-1">
+                  {timerSetupTaskId === task.id ? (
                     <form 
-                        onSubmit={(e) => {
-                            e.preventDefault();
-                            handleConfirmStartTimer(task);
-                        }}
-                        className="flex items-center gap-1"
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        handleConfirmStartTimer(task);
+                      }}
+                      className="flex items-center gap-1"
                     >
                         <input
                             type="number"
@@ -407,68 +407,67 @@ const TodaysPlan: React.FC = () => {
                                 }
                             }}
                         />
-                        <span className="text-xs text-slate-400 dark:text-slate-400">min</span>
+                        <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
                         <button type="submit" className="text-calm-green-500 hover:text-calm-green-600 p-1"><Check size={18} /></button>
                         <button type="button" onClick={() => setTimerSetupTaskId(null)} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
                     </form>
-                ) : (
-                  <>
-                    {!isReviewTask &&
-                      <button
-                        onClick={() => handleStartTimerSetup(task.id)}
-                        disabled={isBlocked || task.completed}
-                        className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-1"
-                        aria-label="Start Timer for this task"
-                      >
-                        <Play size={18} />
-                      </button>
-                    }
-                    <div className="relative">
-                      <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} aria-label="Link dependencies" disabled={isBlocked || task.completed || isReviewTask} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
-                          <Link2 size={18} />
-                      </button>
-                       <AnimatePresence>
-                          {editingDepsFor === task.id && (
-                              <motion.div
-                                  initial={{ opacity: 0, y: -5 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: -5 }}
-                                  className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
-                              >
-                                  <p className="text-sm font-semibold mb-2">Depends on:</p>
-                                  <ul className="max-h-48 overflow-y-auto space-y-2">
-                                      {tasks.filter(t => t.id !== task.id).map(depTask => (
-                                          <li key={depTask.id}>
-                                              <label className="flex items-center gap-2 text-sm">
-                                                  <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
-                                                  <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
-                                              </label>
-                                          </li>
-                                      ))}
-                                  </ul>
-                                  <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
-                              </motion.div>
-                          )}
-                        </AnimatePresence>
-                    </div>
-
+                  ) : (
                     <button
-                      onClick={() => deleteTask(task.id)}
-                      disabled={task.completed}
-                      className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                      aria-label="Delete Task"
+                      onClick={() => handleStartTimerSetup(task.id)}
+                      disabled={isBlocked || task.completed}
+                      className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-1"
+                      aria-label="Start Timer for this task"
                     >
-                      <Trash2 size={18} />
+                      <Play size={18} />
                     </button>
-                  </>
-                )}
+                  )}
+                  <div className="relative">
+                    <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} aria-label="Link dependencies" disabled={isBlocked || task.completed || isReviewTask} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                        <Link2 size={18} />
+                    </button>
+                    <AnimatePresence>
+                    {editingDepsFor === task.id && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
+                        >
+                            <p className="text-sm font-semibold mb-2">Depends on:</p>
+                            <ul className="max-h-48 overflow-y-auto space-y-2">
+                                {tasks.filter(t => t.id !== task.id).map(depTask => (
+                                    <li key={depTask.id}>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
+                                            <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
+                                        </label>
+                                    </li>
+                                ))}
+                                {tasks.length <= 1 && <p className="text-xs text-slate-400 p-1">No other tasks to link.</p>}
+                            </ul>
+                            <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
+                        </motion.div>
+                    )}
+                    </AnimatePresence>
+                  </div>
+                  <button
+                    onClick={() => deleteTask(task.id)}
+                    className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1"
+                    aria-label="Delete task"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </Reorder.Item>
             );
           })}
         </AnimatePresence>
       </Reorder.Group>
-      {tasks.length === 0 && (
-        <p className="text-center text-slate-500 dark:text-slate-400 py-4">No tasks planned for today. Add a task to begin.</p>
+
+      {tasks.length === 0 && !isDayStarted && (
+        <p className="text-center text-slate-500 dark:text-slate-400 py-4">
+          Plan your day for clarity and focus.
+        </p>
       )}
     </div>
   );

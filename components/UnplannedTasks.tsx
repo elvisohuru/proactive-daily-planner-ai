@@ -26,7 +26,7 @@ const UnplannedTasks: React.FC = () => {
           value={newText}
           onChange={(e) => setNewText(e.target.value)}
           placeholder="Capture a thought..."
-          className="flex-grow bg-slate-100 dark:bg-slate-700 rounded-lg px-4 py-2"
+          className="flex-grow min-w-0 bg-slate-100 dark:bg-slate-700 rounded-lg px-4 py-2"
         />
         <button
           type="submit"
