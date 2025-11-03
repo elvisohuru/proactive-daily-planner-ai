@@ -4,7 +4,8 @@ import { format, subDays, parseISO } from 'date-fns';
 import { motion } from 'framer-motion';
 
 const AdvancedAnalytics: React.FC = () => {
-  const { performanceHistory, logs, goals } = useAppStore();
+  const { performanceHistory } = useAppStore();
+  const hasData = useMemo(() => performanceHistory.length > 0, [performanceHistory]);
 
   const performanceData = useMemo(() => {
     const last30Days = Array.from({ length: 30 }).map((_, i) => format(subDays(new Date(), i), 'yyyy-MM-dd')).reverse();
@@ -18,22 +19,9 @@ const AdvancedAnalytics: React.FC = () => {
     });
   }, [performanceHistory]);
 
-  const timePerGoal = useMemo(() => {
-    const goalMap = new Map<string, { text: string; duration: number }>();
-    logs.forEach(log => {
-        // This is a simplified logic. A proper implementation would need to link logs to tasks and then tasks to goals.
-        // For now, we'll simulate it by checking if a goal text is in the log task text.
-        const linkedGoal = goals.find(g => log.task.toLowerCase().includes(g.text.toLowerCase()) && !g.completed);
-        if (linkedGoal) {
-            const current = goalMap.get(linkedGoal.id) || { text: linkedGoal.text, duration: 0 };
-            current.duration += log.duration;
-            goalMap.set(linkedGoal.id, current);
-        }
-    });
-    return Array.from(goalMap.values()).sort((a,b) => b.duration - a.duration);
-  }, [logs, goals]);
-
-  const totalTimeLogged = timePerGoal.reduce((sum, g) => sum + g.duration, 0);
+  if (!hasData) {
+    return null; // The parent ReportsView handles the main empty state.
+  }
 
   return (
     <div>

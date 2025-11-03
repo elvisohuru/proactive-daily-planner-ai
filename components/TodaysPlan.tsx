@@ -424,7 +424,7 @@ const TodaysPlan: React.FC = () => {
                       </button>
                     }
                     <div className="relative">
-                      <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked || task.completed || isReviewTask} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                      <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} aria-label="Link dependencies" disabled={isBlocked || task.completed || isReviewTask} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
                           <Link2 size={18} />
                       </button>
                        <AnimatePresence>

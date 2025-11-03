@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Plus, Trash2, Check, Repeat, GripVertical, Play, X, Link2, Info } from 'lucide-react';
@@ -254,7 +253,7 @@ const DailyRoutine: React.FC = () => {
               )}
 
               <div className="relative">
-                <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
+                <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} aria-label="Link dependencies" disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
                     <Link2 size={18} />
                 </button>
                 <AnimatePresence>

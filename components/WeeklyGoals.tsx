@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { CalendarCheck, Check, Send, Plus, Trash2, Link2, Info, ArrowUpCircle, CircleCheck, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
@@ -78,7 +77,7 @@ const WeeklySubGoalItem: React.FC<{
                     onClick={() => setEditingDepsFor(editingDepsFor === subGoal.id ? null : subGoal.id)} 
                     disabled={isBlocked || subGoal.completed}
                     className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed disabled:opacity-50"
-                     aria-label="Link dependencies"
+                     aria-label="Link dependencies for this sub-goal"
                 >
                     <Link2 size={14} />
                 </button>
@@ -225,7 +224,7 @@ const WeeklyGoalItem: React.FC<{
                         />
                     </div>
                 </div>
-                 <button onClick={() => setIsEditing(!isEditing)} disabled={goal.completed} className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Edit goal">
+                 <button onClick={() => setIsEditing(!isEditing)} disabled={goal.completed} className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:opacity-50 disabled:cursor-not-allowed" aria-label="Edit weekly goal text">
                     <Pencil size={16} />
                 </button>
                  <div className="relative">
@@ -233,7 +232,7 @@ const WeeklyGoalItem: React.FC<{
                         onClick={() => setEditingMainDepsFor(editingMainDepsFor === goal.id ? null : goal.id)} 
                         disabled={isBlocked || goal.completed}
                         className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed disabled:opacity-50"
-                         aria-label="Link dependencies"
+                         aria-label="Link dependencies for this weekly goal"
                     >
                         <Link2 size={16} />
                     </button>

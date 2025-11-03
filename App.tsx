@@ -1,16 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { useAppStore } from './store/useAppStore';
 import Header from './components/Header';
 import ProductivityScore from './components/ProductivityScore';
 import TodaysPlan from './components/TodaysPlan';
 import TaskTimer from './components/TaskTimer';
 import TimeLog from './components/TimeLog';
-import MyGoals from './components/MyGoals';
 import DailyRoutine from './components/DailyRoutine';
 import ReflectionTrigger from './components/ReflectionTrigger';
 import PerformanceHistory from './components/PerformanceHistory';
 import UnplannedTasks from './components/UnplannedTasks';
-import DataAndInsights from './components/DataAndInsights';
 import ProductivityStreak from './components/ProductivityStreak';
 import CommandPalette from './components/CommandPalette';
 import ShutdownRoutine from './components/ShutdownRoutine';
@@ -24,14 +22,21 @@ import Sidebar from './components/Sidebar';
 import AdvancedAnalytics from './components/AdvancedAnalytics';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import TimeAllocationByTag from './components/TimeAllocationByTag';
-import InboxView from './components/InboxView';
 import ProcessInboxItemModal from './components/ProcessInboxItemModal';
-import CalendarView from './components/CalendarView';
 import DashboardCard from './components/DashboardCard';
 import CarryOverModal from './components/CarryOverModal';
 import Toaster from './components/Toaster';
 import WeeklyReview from './components/WeeklyReview';
 import WeeklyReviewTrigger from './components/WeeklyReviewTrigger';
+import LoadingSpinner from './components/LoadingSpinner';
+import { BarChart3 } from 'lucide-react';
+
+// Lazy-load the main view components
+const MyGoals = lazy(() => import('./components/MyGoals'));
+const InboxView = lazy(() => import('./components/InboxView'));
+const CalendarView = lazy(() => import('./components/CalendarView'));
+const DataAndInsights = lazy(() => import('./components/DataAndInsights'));
+
 
 const dashboardComponentMap: { [key: string]: { component: React.FC, title: string, span: string } } = {
   ProductivityScore: { component: ProductivityScore, title: 'Productivity Score', span: 'lg:col-span-3' },
@@ -82,7 +87,6 @@ const DashboardView = () => {
           if (!item) return null;
           const Component = item.component;
           
-          // Translate grid spans to flex-basis for a more flexible layout that works with framer-motion
           const widthClass = item.span === 'lg:col-span-3' 
             ? 'w-full lg:flex-basis-[calc(60%-0.75rem)]' 
             : 'w-full lg:flex-basis-[calc(40%-0.75rem)]';
@@ -106,21 +110,40 @@ const DashboardView = () => {
 };
 
 
-const ReportsView = () => (
-  <div className="space-y-6">
-    <PerformanceHistory />
-    <TimeAllocationByTag />
-    <WastedTime />
-    <TimeLog />
-    <AdvancedAnalytics />
-  </div>
-);
+const ReportsView = () => {
+  const { performanceHistory, logs } = useAppStore();
+  const hasData = performanceHistory.length > 0 || logs.length > 0;
+
+  if (!hasData) {
+    return (
+      <div className="bg-white dark:bg-slate-800 p-10 rounded-2xl shadow-lg text-center flex flex-col items-center justify-center h-full">
+        <BarChart3 size={48} className="mx-auto text-slate-400 mb-4" />
+        <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-200">No Reports to Display</h3>
+        <p className="text-slate-500 dark:text-slate-400 mt-2 max-w-sm">
+          Start tracking your tasks and time to unlock your productivity reports and gain insights into your work patterns.
+        </p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      <PerformanceHistory />
+      <TimeAllocationByTag />
+      <WastedTime />
+      <TimeLog />
+      <AdvancedAnalytics />
+    </div>
+  );
+};
 
 const InsightsView = () => (
   <div className="space-y-6">
-    <DataAndInsights />
+    <Suspense fallback={<LoadingSpinner />}>
+      <DataAndInsights />
+    </Suspense>
   </div>
-)
+);
 
 function App() {
   const { theme, initialize, setCommandPaletteOpen, activeView, isSidebarCollapsed, toggleSidebar } = useAppStore();
@@ -177,7 +200,9 @@ function App() {
       <div className={`flex flex-col flex-1 transition-all duration-300 ease-in-out ${isSidebarCollapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         <Header />
         <main className="flex-1 p-2 sm:p-4 md:p-6 overflow-y-auto">
-          {renderActiveView()}
+          <Suspense fallback={<LoadingSpinner />}>
+            {renderActiveView()}
+          </Suspense>
         </main>
       </div>
 

@@ -233,7 +233,7 @@ const TaskTimer: React.FC = () => {
                   {s.icon}
                 </button>
               ))}
-              <button onClick={handleMute} className="p-2 rounded-full bg-white/10 text-slate-300 hover:bg-white/20" aria-label={isMuted ? 'Unmute' : 'Mute'}>
+              <button onClick={handleMute} className="p-2 rounded-full bg-white/10 text-slate-300 hover:bg-white/20" aria-label={isMuted ? 'Unmute ambient sound' : 'Mute ambient sound'}>
                 {isMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
               </button>
             </motion.div>

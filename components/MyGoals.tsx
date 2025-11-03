@@ -84,7 +84,7 @@ const SubGoalItem: React.FC<{
                     onClick={() => setEditingDepsFor(editingDepsFor === subGoal.id ? null : subGoal.id)} 
                     disabled={isBlocked || subGoal.completed}
                     className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed disabled:opacity-50"
-                     aria-label="Link dependencies"
+                     aria-label="Link dependencies for this sub-goal"
                 >
                     <Link2 size={14} />
                 </button>
@@ -202,7 +202,7 @@ const SubTaskItem: React.FC<{
                     onClick={() => setEditingDepsFor(editingDepsFor === subTask.id ? null : subTask.id)} 
                     disabled={isBlocked || subTask.completed}
                     className="text-slate-400 hover:text-calm-blue-500 p-1 disabled:cursor-not-allowed disabled:opacity-50"
-                     aria-label="Link dependencies"
+                     aria-label="Link dependencies for this sub-task"
                 >
                     <Link2 size={14} />
                 </button>
