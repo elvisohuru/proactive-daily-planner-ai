@@ -226,6 +226,8 @@ export interface AppState {
   // Dashboard layout
   dashboardItems: DashboardLayout;
   isDashboardInReorderMode: boolean;
+  isTodaysPlanInReorderMode: boolean;
+  isRoutineInReorderMode: boolean;
   
   // Day transition
   tasksToCarryOver: Task[] | null;
@@ -337,6 +339,8 @@ export interface AppState {
   // Action for dashboard layout
   setDashboardItems: (newItems: DashboardLayout) => void;
   setDashboardReorderMode: (isInReorderMode: boolean) => void;
+  setTodaysPlanReorderMode: (isInReorderMode: boolean) => void;
+  setRoutineReorderMode: (isInReorderMode: boolean) => void;
   
   // Actions for day transition
   processCarryOverTasks: (tasksToCarry: Task[], tasksToInbox: Task[]) => void;

@@ -12,8 +12,10 @@ const StartDay: React.FC = () => {
 
   if (!hasTasks && !isDayStarted) {
     return (
-        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-lg flex items-center justify-center gap-3 text-slate-500">
-            <p className="font-semibold text-md">Plan your day to get started.</p>
+        <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl shadow-lg">
+            <div className="w-full text-center bg-slate-200 dark:bg-slate-700/50 text-slate-500 dark:text-slate-400 font-bold py-3 px-4 rounded-lg">
+                Plan your day to get started.
+            </div>
         </div>
     );
   }

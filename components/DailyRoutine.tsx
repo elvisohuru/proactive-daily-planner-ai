@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
-import { Plus, Trash2, Check, Repeat, GripVertical, Play, X, Link2, Info } from 'lucide-react';
+import { Plus, Trash2, Check, Repeat, GripVertical, Play, X, Link2, Info, MoreVertical, Move } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import { RoutineTask } from '../types';
 
@@ -13,15 +13,28 @@ const DailyRoutine: React.FC = () => {
   const [timerSetupTaskId, setTimerSetupTaskId] = useState<string | null>(null);
   const [timerDuration, setTimerDuration] = useState('60');
   const [editingDepsFor, setEditingDepsFor] = useState<string | null>(null);
-  const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer, focusOnElement, updateRoutineTask, isDayStarted } = useAppStore();
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  const { routine, goals, addRoutineTask, deleteRoutineTask, toggleRoutineTask, reorderRoutine, startTimer, focusOnElement, updateRoutineTask, isDayStarted, isRoutineInReorderMode, setRoutineReorderMode } = useAppStore();
   
   const newRoutineInputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (focusOnElement === 'new-routine-input') {
       newRoutineInputRef.current?.focus();
     }
   }, [focusOnElement]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleAddRoutine = (e: React.FormEvent) => {
     e.preventDefault();
@@ -84,9 +97,38 @@ const DailyRoutine: React.FC = () => {
 
   return (
     <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg">
-      <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
-        <Repeat size={20} /> Daily Routine
-      </h2>
+      <div className="flex justify-between items-center mb-4">
+        <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
+          <Repeat size={20} /> Daily Routine
+        </h2>
+        <AnimatePresence mode="wait">
+        {routine.length > 0 && !isDayStarted && (
+            isRoutineInReorderMode ? (
+            <motion.button
+                key="done"
+                initial={{ opacity: 0, x: 5 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 5 }}
+                onClick={() => setRoutineReorderMode(false)}
+                className="flex items-center gap-2 text-sm bg-calm-green-500 hover:bg-calm-green-600 text-white font-semibold px-3 py-1.5 rounded-lg transition"
+            >
+                <Check size={18} /> Done
+            </motion.button>
+            ) : (
+            <motion.button
+                key="reorder"
+                initial={{ opacity: 0, x: -5 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -5 }}
+                onClick={() => setRoutineReorderMode(true)}
+                className="flex items-center gap-2 text-sm bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 font-semibold px-3 py-1.5 rounded-lg transition"
+            >
+                <Move size={16} /> Reorder
+            </motion.button>
+            )
+        )}
+        </AnimatePresence>
+      </div>
       <AnimatePresence>
         {!isDayStarted && (
           <motion.form
@@ -127,7 +169,7 @@ const DailyRoutine: React.FC = () => {
             </select>
             <div className="flex justify-between items-center bg-slate-100 dark:bg-slate-700 rounded-lg p-2">
               <span className="text-sm text-slate-600 dark:text-slate-300 px-2">Repeats on:</span>
-              <div className="flex gap-1">
+              <div className="flex flex-wrap justify-end gap-1">
                 {weekDays.map((day, index) => (
                   <button
                     type="button"
@@ -163,13 +205,17 @@ const DailyRoutine: React.FC = () => {
               key={task.id}
               value={task}
               as="li"
+              dragListener={isRoutineInReorderMode}
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, x: -20, transition: { duration: 0.2 } }}
-              className={`flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg ${isBlocked || task.completed ? 'opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
+              className={`flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg ${isBlocked || task.completed ? 'opacity-60' : ''} ${isRoutineInReorderMode && !isBlocked && !task.completed ? 'cursor-grab active:cursor-grabbing' : ''}`}
             >
-              {(!isBlocked && !task.completed) && <GripVertical size={18} className="text-slate-400 flex-shrink-0" />}
-              {(isBlocked || task.completed) && <div className="w-[18px] flex-shrink-0" />}
+              {isRoutineInReorderMode && !isBlocked && !task.completed ? (
+                <GripVertical size={18} className="text-slate-400 flex-shrink-0" />
+              ) : (
+                <div className="w-[18px] flex-shrink-0" />
+              )}
               
               <button
                 onClick={() => !isBlocked && toggleRoutineTask(task.id)}
@@ -215,80 +261,84 @@ const DailyRoutine: React.FC = () => {
                   <span className="text-xs text-slate-500 dark:text-slate-400">{recurringDaysText}</span>
                  </div>
               </div>
-
-              {timerSetupTaskId === task.id ? (
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleConfirmStartTimer(task);
-                  }}
-                  className="flex items-center gap-1"
-                >
-                    <input
-                        type="number"
-                        min="1"
-                        value={timerDuration}
-                        onChange={(e) => setTimerDuration(e.target.value)}
-                        className="w-16 bg-slate-200 dark:bg-slate-600 rounded-md px-2 py-1 text-sm text-center focus:ring-2 focus:ring-calm-blue-500 focus:outline-none"
-                        autoFocus
-                        onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                                handleCancelTimerSetup();
-                            }
-                        }}
-                    />
-                    <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
-                    <button type="submit" className="text-calm-green-500 hover:text-calm-green-600 p-1"><Check size={18} /></button>
-                    <button type="button" onClick={handleCancelTimerSetup} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
-                </form>
-              ) : (
-                <button
-                  onClick={() => handleStartTimerSetup(task.id)}
-                  disabled={isBlocked || task.completed}
-                  className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-1"
-                  aria-label="Start Timer for this routine task"
-                >
-                  <Play size={18} />
-                </button>
-              )}
-
-              <div className="relative">
-                <button onClick={() => setEditingDepsFor(editingDepsFor === task.id ? null : task.id)} aria-label="Link dependencies" disabled={isBlocked || task.completed} className="text-slate-400 p-1 disabled:cursor-not-allowed disabled:opacity-50 hover:text-calm-blue-500">
-                    <Link2 size={18} />
-                </button>
-                <AnimatePresence>
-                {editingDepsFor === task.id && (
-                    <motion.div
-                        initial={{ opacity: 0, y: -5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -5 }}
-                        className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
+              <div className="flex-shrink-0 flex items-center gap-1 ml-auto">
+                {timerSetupTaskId === task.id ? (
+                    <motion.form
+                        layout
+                        onSubmit={(e) => { e.preventDefault(); handleConfirmStartTimer(task); }}
+                        className="flex items-center gap-1"
                     >
-                        <p className="text-sm font-semibold mb-2">Depends on:</p>
-                        <ul className="max-h-48 overflow-y-auto space-y-2">
-                            {routine.filter(t => t.id !== task.id).map(depTask => (
-                                <li key={depTask.id}>
-                                    <label className="flex items-center gap-2 text-sm">
-                                        <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
-                                        <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
-                                    </label>
-                                </li>
-                            ))}
-                        </ul>
-                          <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
-                    </motion.div>
+                        <input
+                            type="number" min="1" value={timerDuration}
+                            onChange={(e) => setTimerDuration(e.target.value)}
+                            className="w-16 bg-slate-200 dark:bg-slate-600 rounded-md px-2 py-1 text-sm text-center focus:ring-2 focus:ring-calm-blue-500 focus:outline-none"
+                            autoFocus
+                            onKeyDown={(e) => { if (e.key === 'Escape') handleCancelTimerSetup(); }}
+                        />
+                        <span className="text-xs text-slate-500 dark:text-slate-400">min</span>
+                        <button type="submit" className="text-calm-green-500 hover:text-calm-green-600 p-1"><Check size={18} /></button>
+                        <button type="button" onClick={handleCancelTimerSetup} className="text-slate-400 hover:text-slate-600 p-1"><X size={18} /></button>
+                    </motion.form>
+                ) : (
+                    <div className="relative" ref={menuRef}>
+                        <button
+                            onClick={() => setOpenMenuId(openMenuId === task.id ? null : task.id)}
+                            disabled={task.completed || isRoutineInReorderMode}
+                            className="text-slate-400 hover:text-calm-blue-500 dark:hover:text-calm-blue-400 disabled:cursor-not-allowed disabled:opacity-50 transition-colors p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-600"
+                            aria-label="Routine task options"
+                        >
+                            <MoreVertical size={20} />
+                        </button>
+                        <AnimatePresence>
+                        {openMenuId === task.id && (
+                            <motion.div
+                                initial={{ opacity: 0, y: -5 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, y: -5 }}
+                                className="absolute z-20 right-0 top-full mt-1 w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-1"
+                            >
+                                <ul className="text-sm text-slate-700 dark:text-slate-300">
+                                    <li><button onClick={() => { handleStartTimerSetup(task.id); setOpenMenuId(null); }} disabled={isBlocked || task.completed} className="w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
+                                        <Play size={16}/> Start Timer
+                                    </button></li>
+                                    <li><button onClick={() => { setEditingDepsFor(editingDepsFor === task.id ? null : task.id); setOpenMenuId(null); }} disabled={isBlocked || task.completed} className="w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50">
+                                        <Link2 size={16}/> Link Dependencies
+                                    </button></li>
+                                    <li><button onClick={() => deleteRoutineTask(task.id)} disabled={isDayStarted} className="w-full text-left flex items-center gap-2 p-2 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-red-500 disabled:opacity-50">
+                                        <Trash2 size={16}/> Delete
+                                    </button></li>
+                                </ul>
+                            </motion.div>
+                        )}
+                        </AnimatePresence>
+                    </div>
                 )}
-                </AnimatePresence>
+                 <div className="relative">
+                    <AnimatePresence>
+                    {editingDepsFor === task.id && (
+                        <motion.div
+                            initial={{ opacity: 0, y: -5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            className="absolute z-20 right-0 top-full mt-2 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg p-3"
+                        >
+                            <p className="text-sm font-semibold mb-2">Depends on:</p>
+                            <ul className="max-h-48 overflow-y-auto space-y-2">
+                                {routine.filter(t => t.id !== task.id).map(depTask => (
+                                    <li key={depTask.id}>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <input type="checkbox" checked={task.dependsOn?.includes(depTask.id) ?? false} onChange={(e) => handleDependencyChange(task.id, depTask.id, e.target.checked)} className="rounded text-calm-blue-500 focus:ring-calm-blue-500" />
+                                            <span className={depTask.completed ? 'line-through text-slate-400' : ''}>{depTask.text}</span>
+                                        </label>
+                                    </li>
+                                ))}
+                            </ul>
+                            <button onClick={() => setEditingDepsFor(null)} className="mt-3 w-full text-center text-xs text-slate-500 hover:text-slate-800 dark:hover:text-slate-200">Close</button>
+                        </motion.div>
+                    )}
+                    </AnimatePresence>
+                  </div>
               </div>
-
-              <button
-                onClick={() => deleteRoutineTask(task.id)}
-                disabled={task.completed}
-                className="text-slate-400 hover:text-red-500 dark:hover:text-red-400 transition-colors p-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                aria-label="Delete Routine Task"
-              >
-                <Trash2 size={18} />
-              </button>
             </Reorder.Item>
           )
         })}

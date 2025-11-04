@@ -95,6 +95,8 @@ export const useAppStore = create<AppState>()(
       // Dashboard Layout
       dashboardItems: defaultDashboardLayout,
       isDashboardInReorderMode: false,
+      isTodaysPlanInReorderMode: false,
+      isRoutineInReorderMode: false,
       
       // Day transition
       tasksToCarryOver: null,
@@ -1222,6 +1224,8 @@ export const useAppStore = create<AppState>()(
     // Dashboard layout action
     setDashboardItems: (newItems) => set({ dashboardItems: newItems }),
     setDashboardReorderMode: (isInReorderMode) => set({ isDashboardInReorderMode: isInReorderMode }),
+    setTodaysPlanReorderMode: (isInReorderMode) => set({ isTodaysPlanInReorderMode: isInReorderMode }),
+    setRoutineReorderMode: (isInReorderMode) => set({ isRoutineInReorderMode: isInReorderMode }),
     
     // Day transition actions
     processCarryOverTasks: (tasksToCarry, tasksToInbox) => {
