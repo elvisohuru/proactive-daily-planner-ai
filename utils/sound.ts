@@ -135,3 +135,60 @@ export const playIdleAlarm = () => {
     console.error("Failed to play idle alarm:", error);
   }
 };
+
+export const playCelebrationPopSound = () => {
+  try {
+    const context = getContext();
+    if (!context) return;
+    if (context.state === 'suspended') context.resume();
+
+    const osc = context.createOscillator();
+    const gain = context.createGain();
+
+    osc.connect(gain);
+    gain.connect(context.destination);
+
+    gain.gain.setValueAtTime(0, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3, context.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.1);
+
+    osc.frequency.setValueAtTime(200, context.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(100, context.currentTime + 0.1);
+
+    osc.start(context.currentTime);
+    osc.stop(context.currentTime + 0.15);
+  } catch (error) {
+    console.error("Failed to play pop sound:", error);
+  }
+};
+
+export const playSparkleSound = () => {
+  try {
+    const context = getContext();
+    if (!context) return;
+    if (context.state === 'suspended') context.resume();
+
+    const playNote = (freq: number, delay: number) => {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.connect(gain);
+      gain.connect(context.destination);
+
+      gain.gain.setValueAtTime(0, context.currentTime + delay);
+      gain.gain.linearRampToValueAtTime(0.15, context.currentTime + delay + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + delay + 0.8);
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, context.currentTime + delay);
+
+      osc.start(context.currentTime + delay);
+      osc.stop(context.currentTime + delay + 1);
+    };
+
+    playNote(1046.50, 0); // C6
+    playNote(1396.91, 0.1); // F6
+    playNote(1567.98, 0.2); // G6
+  } catch (error) {
+    console.error("Failed to play sparkle sound:", error);
+  }
+};

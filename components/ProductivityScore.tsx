@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '../store/useAppStore';
-import { playCompletionSound } from '../utils/sound';
+import { playCelebrationPopSound, playSparkleSound } from '../utils/sound';
+import { Check, Target, Flame, Star } from 'lucide-react';
 
 const usePrevious = <T,>(value: T): T | undefined => {
   const ref = useRef<T>();
@@ -11,47 +12,62 @@ const usePrevious = <T,>(value: T): T | undefined => {
   return ref.current;
 };
 
-const ConfettiPiece: React.FC<{ delay: number, isBurst: boolean }> = ({ delay, isBurst }) => {
-  const colors = ['#38bdf8', '#22c55e', '#eab308', '#f472b6', '#a855f7'];
-  const color = colors[Math.floor(Math.random() * colors.length)];
+const iconComponents = [
+  (props: any) => <Check {...props} color="#22c55e" />,
+  (props: any) => <Target {...props} color="#38bdf8" />,
+  (props: any) => <Flame {...props} color="#f97316" />,
+  (props: any) => <Star {...props} color="#facc15" />,
+];
 
-  const angle = Math.random() * 2 * Math.PI;
-  const radius = isBurst ? 100 + Math.random() * 200 : 50 + Math.random() * 150;
-  const x = Math.cos(angle) * radius;
-  const y = Math.sin(angle) * radius;
-  const rotation = Math.random() * 360;
-  const scale = isBurst ? 1.2 : 1;
-
+const FloatingIcon: React.FC<{ piece: any }> = ({ piece }) => {
+  const Icon = piece.icon;
   return (
     <motion.div
       style={{
         position: 'absolute',
-        left: '50%',
-        top: '50%',
-        width: 10,
-        height: 10,
-        backgroundColor: color,
+        bottom: -50,
+        left: piece.left,
         x: '-50%',
-        y: '-50%',
       }}
-      initial={{ scale: 0, opacity: 0, rotate: 0 }}
       animate={{
-        x: [0, x],
-        y: [0, y],
-        scale: [0, scale, 0],
-        opacity: [0, 1, 1, 0],
-        rotate: [0, rotation],
+        y: -450,
+        opacity: [0, 0.8, 0.8, 0],
+        scale: [0.5, 1.2, 1, 0.5],
+        rotate: piece.rotate,
       }}
       transition={{
-        duration: isBurst ? 1.5 + Math.random() : 2.5 + Math.random() * 2,
-        ease: 'circOut',
-        repeat: isBurst ? 0 : Infinity,
+        duration: piece.duration,
+        delay: piece.delay,
+        repeat: Infinity,
         repeatType: 'loop',
-        delay,
+        ease: 'linear',
       }}
-    />
+    >
+      <Icon size={piece.size} />
+    </motion.div>
   );
 };
+
+const ContinuousCelebration = React.memo(() => {
+  const pieces = useMemo(() => {
+    return Array.from({ length: 25 }).map((_, i) => ({
+      id: i,
+      icon: iconComponents[i % iconComponents.length],
+      left: `${Math.random() * 100}%`,
+      delay: Math.random() * 12,
+      duration: 6 + Math.random() * 6,
+      size: 14 + Math.random() * 12,
+      rotate: (Math.random() - 0.5) * 360,
+    }));
+  }, []);
+
+  return (
+    <div className="absolute inset-0 pointer-events-none z-0">
+      {pieces.map(p => <FloatingIcon key={p.id} piece={p} />)}
+    </div>
+  );
+});
+
 
 const ProductivityScore: React.FC = () => {
   const { plan, routine } = useAppStore();
@@ -59,19 +75,15 @@ const ProductivityScore: React.FC = () => {
   const todayIndex = new Date().getDay();
   const todaysScheduledRoutine = routine.filter(r => r.recurringDays.length === 0 || r.recurringDays.includes(todayIndex));
 
-  // Base tasks for 100% score
   const basePlannedTasks = plan.tasks.filter(task => !task.isBonus);
   const totalPlannedForScore = basePlannedTasks.length;
 
-  // All completed tasks
   const completedPlanned = plan.tasks.filter((task) => task.completed).length;
 
   const totalRoutine = todaysScheduledRoutine.length;
   const completedRoutine = todaysScheduledRoutine.filter((task) => task.completed).length;
 
-  // Denominator for score calculation
   const totalTasksForScore = totalPlannedForScore + totalRoutine;
-  // Numerator
   const completedTasks = completedPlanned + completedRoutine;
 
   const score = totalTasksForScore > 0 ? Math.round((completedTasks / totalTasksForScore) * 100) : 0;
@@ -81,17 +93,21 @@ const ProductivityScore: React.FC = () => {
 
   useEffect(() => {
     if (isComplete && !prevIsComplete) {
-      playCompletionSound();
+      playCelebrationPopSound();
+      // Play the sparkle sound once as part of the initial celebration
+      const sparkleTimeout = setTimeout(() => {
+        playSparkleSound();
+      }, 200);
+
+      return () => {
+        clearTimeout(sparkleTimeout);
+      };
     }
   }, [isComplete, prevIsComplete]);
-
-  const initialBurstPieces = Array.from({ length: 70 }).map((_, i) => ({ id: i, delay: Math.random() * 0.5 }));
-  const continuousPieces = Array.from({ length: 80 }).map((_, i) => ({ id: i, delay: i * 0.1 }));
   
   const circumference = 2 * Math.PI * 54; // 2 * pi * radius
   const scoreRatio = totalTasksForScore > 0 ? completedTasks / totalTasksForScore : 0;
   const strokeDashoffset = circumference - Math.min(scoreRatio, 1) * circumference;
-
 
   const totalTasks = plan.tasks.length + totalRoutine;
 
@@ -107,38 +123,37 @@ const ProductivityScore: React.FC = () => {
   }
 
   return (
-    <motion.div
+    <div
       className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-lg flex flex-col items-center gap-4 relative overflow-hidden"
-      animate={{
-        boxShadow: isComplete ? '0 0 30px 8px rgba(34, 197, 94, 0.4)' : '0 0 0px 0px rgba(34, 197, 94, 0)',
-      }}
-      transition={{ duration: 1.5, ease: 'easeInOut' }}
     >
-      <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0">
-        <AnimatePresence>
-          {isComplete && (
-            <>
-              {initialBurstPieces.map(p => <ConfettiPiece key={`burst-${p.id}`} delay={p.delay} isBurst={true} />)}
-              {continuousPieces.map(p => <ConfettiPiece key={`rain-${p.id}`} delay={p.delay} isBurst={false} />)}
-            </>
-          )}
-        </AnimatePresence>
-        <svg className="w-full h-full relative z-10" viewBox="0 0 120 120">
+      <AnimatePresence>
+          {isComplete && <ContinuousCelebration />}
+      </AnimatePresence>
+      <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0 z-10">
+        <svg className="w-full h-full" viewBox="0 0 120 120">
           <circle cx="60" cy="60" r="54" fill="none" strokeWidth="12" className="text-slate-200 dark:text-slate-700" />
           <motion.circle
             cx="60" cy="60" r="54" fill="none" strokeWidth="12"
             className={`stroke-current ${isComplete ? 'text-calm-green-500' : 'text-calm-blue-500'}`}
             strokeLinecap="round" transform="rotate(-90 60 60)"
             style={{ strokeDasharray: circumference }}
-            animate={{ strokeDashoffset, filter: isComplete ? ['drop-shadow(0 0 0px #22c55e)', 'drop-shadow(0 0 10px #22c55e)', 'drop-shadow(0 0 0px #22c55e)'] : 'none' }}
-            transition={{ strokeDashoffset: { duration: 0.8, ease: 'easeInOut' }, filter: { duration: 2, repeat: Infinity, ease: 'easeInOut' } }}
+            animate={{ 
+              strokeDashoffset, 
+              filter: isComplete 
+                ? ['drop-shadow(0 0 4px #22c55e)', 'drop-shadow(0 0 20px #22c55e)', 'drop-shadow(0 0 4px #22c55e)'] 
+                : 'none' 
+            }}
+            transition={{ 
+              strokeDashoffset: { duration: 0.8, ease: 'easeInOut' }, 
+              filter: isComplete ? { duration: 2.5, repeat: Infinity, ease: 'easeInOut', repeatType: 'mirror' } : { duration: 0.5 } 
+            }}
           />
         </svg>
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-3xl sm:text-4xl font-bold text-slate-800 dark:text-slate-100">{score}<span className="text-xl sm:text-2xl text-slate-500">%</span></span>
         </div>
       </div>
-      <div className="text-center">
+      <div className="text-center z-10">
         <p className="text-base sm:text-lg font-semibold text-slate-700 dark:text-slate-300">
           {getMotivationalMessage()}
         </p>
@@ -146,7 +161,7 @@ const ProductivityScore: React.FC = () => {
           {completedTasks} of {totalTasks} tasks completed
         </p>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
